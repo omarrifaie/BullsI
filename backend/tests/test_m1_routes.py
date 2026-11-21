@@ -1,7 +1,10 @@
 """Every route responds with contract-shaped data (Gemini and network mocked)."""
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
+
+from agents import commute as commute_agent
 
 from models import Commute, Job, Profile
 
@@ -54,10 +57,30 @@ def test_jobs_match_contract(client: TestClient) -> None:
   assert client.get("/jobs?mode=bogus").status_code == 422
 
 
-def test_commute_stub(client: TestClient) -> None:
+# A Routes API transit response: 4 min walk, then a 15 min Bull Runner ride.
+FAKE_ROUTE: dict[str, Any] = {"routes": [{"duration": "1500s", "distanceMeters": 9000, "legs": [{"steps": [
+  {"travelMode": "WALK", "staticDuration": "240s", "distanceMeters": 300,
+   "navigationInstruction": {"instructions": "Walk to Marshall Student Center"}},
+  {"travelMode": "TRANSIT", "staticDuration": "900s", "transitDetails": {
+    "headsign": "UATC", "stopCount": 4, "transitLine": {"name": "Bull Runner", "nameShort": "BR"},
+    "stopDetails": {"departureStop": {"name": "Marshall Student Center"}, "arrivalStop": {"name": "UATC"},
+                    "departureTime": "2026-11-24T19:22:00Z", "arrivalTime": "2026-11-24T19:37:00Z"}}},
+]}]}]}
+
+
+@pytest.fixture()
+def fake_routes(monkeypatch: pytest.MonkeyPatch) -> None:
+  """Teammate B's commute agent without Google: canned transit route, 12 km drive."""
+  monkeypatch.setattr(commute_agent, "_call", lambda body, _mask: (
+    {"routes": [{"distanceMeters": 12000}]} if body["travelMode"] == "DRIVE" else FAKE_ROUTE))
+
+
+def test_commute_route(client: TestClient, fake_routes: None) -> None:
   _post_profile(client)
   job_id: str = client.get("/jobs?mode=parttime").json()[0]["id"]
-  Commute.model_validate(client.get(f"/jobs/{job_id}/commute").json())
+  commute: dict[str, Any] = client.get(f"/jobs/{job_id}/commute").json()
+  Commute.model_validate(commute)
+  assert commute["minutes"] == 25 and commute["car_free"]
   assert client.get("/jobs/job_nope/commute").status_code == 404
 
 
@@ -80,17 +103,17 @@ def test_auto_threshold(client: TestClient) -> None:
   assert len(body["documents"]) == len(body["queued"])
 
 
-def test_teammate_stubs(client: TestClient) -> None:
-  _post_profile(client)
-  assert client.post("/apply").json() == {"status": "started"}
-  job: dict[str, Any] = client.get("/jobs?mode=parttime").json()[0]
-  assert client.post("/myjob", json=job).json()["status"] == "saved"
+def test_myjob_routes(client: TestClient, fake_routes: None, monkeypatch: pytest.MonkeyPatch) -> None:
+  monkeypatch.setattr(commute_agent, "answer_missed_bus", lambda message, ctx: f"Next bus for {ctx['employer']}")
+  assert client.get("/myjob/today").status_code == 404
+  job: dict[str, Any] = {"employer": "Bulls Brew Cafe", "address": "5010 E Fowler Ave, Tampa, FL 33617",
+                         "shifts": [{"day": "Tue", "start": "15:00", "end": "21:00"}]}
+  assert client.post("/myjob", json=job).json() == {"ok": True}
   today: dict[str, Any] = client.get("/myjob/today").json()
-  assert today["job"]["id"] == job["id"]
-  Commute.model_validate(today["commute"])
+  assert today["employer"] == "Bulls Brew Cafe" and today["minutes"] == 25 and today["leave_by"]
   ics = client.get("/myjob/calendar.ics")
-  assert ics.headers["content-type"].startswith("text/calendar") and "BEGIN:VEVENT" in ics.text
-  assert client.post("/chat", json={"message": "when do I work?"}).json()["reply"]
+  assert ics.headers["content-type"].startswith("text/calendar") and ics.text.count("BEGIN:VEVENT") == 4
+  assert client.post("/chat", json={"message": "I missed the bus"}).json() == {"reply": "Next bus for Bulls Brew Cafe"}
 
 
 def test_cors_allows_frontend(client: TestClient) -> None:

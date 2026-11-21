@@ -141,7 +141,8 @@ def load_part_time() -> list[dict[str, Any]]:
   """Teammate B owns part_time_jobs.json; create placeholders only if it doesn't exist yet."""
   if not PART_TIME_FILE.exists():
     PART_TIME_FILE.write_text(json.dumps(PLACEHOLDER_PART_TIME, indent=2), encoding="utf-8")
-  return json.loads(PART_TIME_FILE.read_text(encoding="utf-8"))
+  # Teammate B's file may omit the contract's match/commute keys; Job requires them.
+  return [{"match": None, "commute": None, **j} for j in json.loads(PART_TIME_FILE.read_text(encoding="utf-8"))]
 
 
 def find_job(job_id: str) -> Optional[dict[str, Any]]:

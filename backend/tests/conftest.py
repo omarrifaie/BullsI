@@ -13,7 +13,8 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")  # for TECTONIC_PATH; Gemini is always mocked in tests
 
-from agents import jobdesc, matcher, scout  # noqa: E402
+import routes_b  # noqa: E402
+from agents import commute, jobdesc, matcher, scout  # noqa: E402
 from agents import profile as profile_agent  # noqa: E402
 from agents import tailor as tailor_agent  # noqa: E402
 from fake_data import FAKE_PROFILE  # noqa: E402
@@ -88,6 +89,8 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
   monkeypatch.setattr(scout, "LISTINGS_CACHE", cache)
   monkeypatch.setattr(scout, "LISTINGS_SEED", tmp_path / "listings_seed.json")
   monkeypatch.setattr(scout, "PART_TIME_FILE", tmp_path / "part_time_jobs.json")
+  monkeypatch.setattr(routes_b, "DATA", tmp_path / "part_time_jobs.json")  # B's routes read the file directly
+  monkeypatch.setattr(commute, "DB_PATH", str(tmp_path / "test.db"))  # B reads BULLPEN_DB once at import
 
   def offline(*_args: Any, **_kwargs: Any) -> None:
     raise httpx.ConnectError("offline in tests")

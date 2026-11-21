@@ -80,3 +80,17 @@ def test_apply_starts_worker_once(client: TestClient, monkeypatch: pytest.Monkey
   assert len(calls) == 2
   assert calls[0]["args"][1:] == ["apply.py", "--backend", "http://testserver"]
   assert calls[0]["cwd"] == main.APPLY_WORKER_DIR
+
+
+def test_init_db_migrates_old_myjob_table(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+  """bullpen.db files from before the person-b merge have myjob(json); teammate B's routes read myjob(data)."""
+  import sqlite3
+  path: Path = tmp_path / "old.db"
+  with sqlite3.connect(path) as conn:
+    conn.execute("CREATE TABLE myjob (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL)")
+    conn.execute("INSERT INTO myjob VALUES (1, '{}')")
+  monkeypatch.setenv("BULLPEN_DB", str(path))
+  main.db.init_db()
+  main.db.init_db()  # idempotent
+  with sqlite3.connect(path) as conn:
+    assert [r[1] for r in conn.execute("PRAGMA table_info(myjob)")] == ["id", "data"]

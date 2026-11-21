@@ -181,7 +181,7 @@ def score_parttime(profile: dict[str, Any], job: dict[str, Any]) -> tuple[int, d
   shifts: list[dict[str, str]] = job.get("shifts") or []
   schedule_frac: float = sum(1.0 if s["day"] not in class_days else 0.7 for s in shifts) / len(shifts) if shifts else 0.5
   commute: Optional[dict[str, Any]] = job.get("commute")
-  if commute:  # teammate B's real data
+  if commute and commute.get("minutes") is not None:  # teammate B's real data (minutes is None when no route)
     commute_frac: float = _linear(commute["minutes"], 15, 60)
     commute_note: str = f"{commute['minutes']} min"
   elif job.get("lat") is not None and job.get("lng") is not None:

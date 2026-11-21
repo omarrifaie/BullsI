@@ -36,10 +36,6 @@ CREATE TABLE IF NOT EXISTS cache (
   json TEXT NOT NULL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-CREATE TABLE IF NOT EXISTS myjob (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  json TEXT NOT NULL
-);
 """
 
 
@@ -66,6 +62,9 @@ def init_db() -> None:
     columns: set[str] = {row["name"] for row in conn.execute("PRAGMA table_info(documents)")}
     if "warnings" not in columns:  # bullpen.db files created before M5
       conn.execute("ALTER TABLE documents ADD COLUMN warnings TEXT")
+    myjob_columns: set[str] = {row["name"] for row in conn.execute("PRAGMA table_info(myjob)")}
+    if "json" in myjob_columns:  # pre-merge stub schema; teammate B's routes_b.py owns myjob and reads "data"
+      conn.execute("ALTER TABLE myjob RENAME COLUMN json TO data")
 
 
 def save_profile(profile: dict[str, Any]) -> int:
@@ -129,13 +128,3 @@ def cache_set(key: str, value: Any) -> None:
   with _db() as conn:
     conn.execute("INSERT OR REPLACE INTO cache (key, json) VALUES (?, ?)", (key, json.dumps(value)))
 
-
-def save_myjob(job: dict[str, Any]) -> None:
-  with _db() as conn:
-    conn.execute("INSERT OR REPLACE INTO myjob (id, json) VALUES (1, ?)", (json.dumps(job),))
-
-
-def get_myjob() -> Optional[dict[str, Any]]:
-  with _db() as conn:
-    row: Optional[sqlite3.Row] = conn.execute("SELECT json FROM myjob WHERE id = 1").fetchone()
-  return json.loads(row["json"]) if row else None

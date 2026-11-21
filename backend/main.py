@@ -10,19 +10,17 @@ from pathlib import Path
 from typing import Any, AsyncIterator, Literal, Optional
 
 from dotenv import load_dotenv
-from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 import db  # noqa: E402
 import graph  # noqa: E402
+import routes_b  # noqa: E402
 from agents import jobdesc, scout  # noqa: E402
-from fake_data import FAKE_COMMUTE, FAKE_PARTTIME  # noqa: E402
 from latex.render import tectonic_path  # noqa: E402
 from models import Job  # noqa: E402
 
@@ -49,6 +47,7 @@ app.add_middleware(
   allow_headers=["*"],
 )
 app.mount("/generated", StaticFiles(directory=GENERATED_DIR), name="generated")
+app.include_router(routes_b.router)  # teammate B: /jobs/{id}/commute, /myjob, /myjob/today, /myjob/calendar.ics, /chat
 
 
 def _find_job(job_id: str) -> dict[str, Any]:
@@ -148,13 +147,6 @@ def get_jobs(mode: Literal["internship", "parttime"] = Query(...), refresh: bool
   return [Job.model_validate(j).model_dump() for j in state["jobs"]]
 
 
-# Owned by teammate B. Stub.
-@app.get("/jobs/{job_id}/commute")
-def get_commute(job_id: str) -> dict[str, Any]:
-  _find_job(job_id)
-  return FAKE_COMMUTE
-
-
 # Owned by teammate C. Stub.
 @app.post("/queue/{job_id}")
 def queue_job(job_id: str) -> dict[str, Any]:
@@ -223,37 +215,3 @@ def auto(request: Request, threshold: int = Query(80, ge=0, le=100)) -> dict[str
     {"action": "auto", "profile": _require_profile(), "mode": "internship", "threshold": threshold})
   return {"queued": state["queue"], "documents": _public_documents(request, state["documents"])}
 
-
-# Owned by teammate B. Stubs.
-@app.post("/myjob")
-def save_myjob(job: dict[str, Any] = Body(...)) -> dict[str, Any]:
-  db.save_myjob(job)
-  return {"status": "saved", "myjob": job}
-
-
-@app.get("/myjob/today")
-def myjob_today() -> dict[str, Any]:
-  job: dict[str, Any] = db.get_myjob() or FAKE_PARTTIME[0]
-  return {"job": job, "shift": {"day": "Tue", "start": "15:00", "end": "21:00"},
-          "commute": FAKE_COMMUTE, "leave_by": "14:18"}
-
-
-@app.get("/myjob/calendar.ics")
-def myjob_calendar() -> Response:
-  ics: str = "\r\n".join([
-    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//BullPen//EN",
-    "BEGIN:VEVENT", "UID:bullpen-shift-1@bullpen", "DTSTAMP:20261121T120000Z",
-    "DTSTART:20261124T150000", "DTEND:20261124T210000", "RRULE:FREQ=WEEKLY;BYDAY=TU,TH",
-    "SUMMARY:Barista shift - Bulls Brew Cafe", "LOCATION:5010 E Fowler Ave\\, Tampa\\, FL 33617",
-    "END:VEVENT", "END:VCALENDAR", "",
-  ])
-  return Response(content=ics, media_type="text/calendar")
-
-
-class ChatIn(BaseModel):
-  message: str
-
-
-@app.post("/chat")
-def chat(body: ChatIn) -> dict[str, str]:
-  return {"reply": "Your next shift is Tuesday 15:00-21:00. Leave by 14:18 to catch the Bull Runner C."}

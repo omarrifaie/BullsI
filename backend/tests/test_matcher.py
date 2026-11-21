@@ -124,6 +124,26 @@ def test_parttime_commute_uses_teammate_data_when_present() -> None:
   assert a - b == 25
 
 
+def test_parttime_commute_without_route_falls_back_to_distance() -> None:
+  """Teammate B's agent returns minutes=None when Google has no route; use straight-line distance instead."""
+  no_route: dict[str, Any] = {"minutes": None, "car_free": False, "transfers": 0, "co2_saved_kg_week": 0, "steps": []}
+  shift: list[dict[str, str]] = [{"day": "Sat", "start": "10:00", "end": "14:00"}]
+  _, breakdown = matcher.score_parttime(_profile(), _parttime(shift, commute=no_route))
+  assert breakdown["commute_note"].endswith("km from USF")
+  _, unknown = matcher.score_parttime(_profile(), _parttime(shift, lat=None, lng=None))
+  assert unknown["commute_note"] == "unknown distance"
+
+
+def test_part_time_file_without_contract_keys(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+  """Teammate B's part_time_jobs.json omits match/commute; Scout fills them so Job validates."""
+  job: dict[str, Any] = {k: v for k, v in _parttime([]).items() if k not in ("match", "commute")}
+  path: Path = tmp_path / "part_time_jobs.json"
+  path.write_text(json.dumps([job]), encoding="utf-8")
+  monkeypatch.setattr(scout, "PART_TIME_FILE", path)
+  loaded: dict[str, Any] = scout.load_part_time()[0]
+  assert loaded["match"] is None and loaded["commute"] is None
+
+
 # ---------- scout ----------
 
 def test_scout_filters_and_keeps_local_listings() -> None:
