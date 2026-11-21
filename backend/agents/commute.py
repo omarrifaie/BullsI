@@ -21,6 +21,9 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
+import db
+import gemini
+
 TZ = ZoneInfo("America/New_York")
 CAMPUS = {"lat": 28.0587, "lng": -82.4139}  # USF Tampa; adjust if you start elsewhere
 ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
@@ -30,8 +33,6 @@ ARRIVE_EARLY_MIN = 10  # arrive this long before a shift starts
 # EPA: a typical passenger vehicle emits about 400 g CO2 per mile (cite on the slide).
 EPA_KG_CO2_PER_MILE = 0.400
 HART_FARE = float(os.getenv("HART_FARE", "2.00"))  # VERIFY the current HART fare before demo
-DB_PATH = os.getenv("BULLPEN_DB", "bullpen.db")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")  # swap for newest stable Flash
 
 DAYS = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6}
 
@@ -77,6 +78,10 @@ def _secs(v) -> int:
 
 
 # ---------- Routes API ----------
+class MapsUnavailable(RuntimeError):
+    """No GOOGLE_MAPS_API_KEY, or the Routes API call failed. Routes turn this into a 503."""
+
+
 def _waypoint(p):
     if isinstance(p, str):
         return {"address": p}
@@ -84,13 +89,21 @@ def _waypoint(p):
 
 
 def _call(body: dict, mask: str) -> dict:
-    r = httpx.post(
-        ROUTES_URL,
-        json=body,
-        timeout=20,
-        headers={"X-Goog-Api-Key": os.environ["GOOGLE_MAPS_API_KEY"], "X-Goog-FieldMask": mask},
-    )
-    r.raise_for_status()
+    key = os.environ.get("GOOGLE_MAPS_API_KEY")
+    if not key:
+        raise MapsUnavailable("GOOGLE_MAPS_API_KEY is not set in the repo-root .env")
+    try:
+        r = httpx.post(
+            ROUTES_URL,
+            json=body,
+            timeout=20,
+            headers={"X-Goog-Api-Key": key, "X-Goog-FieldMask": mask},
+        )
+        r.raise_for_status()
+    except httpx.HTTPStatusError as e:  # message has the status and Google's reason, never the key
+        raise MapsUnavailable(f"Routes API returned {e.response.status_code}: {e.response.text[:200]}") from e
+    except httpx.HTTPError as e:
+        raise MapsUnavailable(f"Routes API unreachable: {type(e).__name__}") from e
     return r.json()
 
 
@@ -185,7 +198,7 @@ def driving_miles(origin, dest) -> float:
 
 # ---------- cache (the demo must never wait on the API) ----------
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
+    conn = db.connect()  # same absolute bullpen.db (or BULLPEN_DB) as the rest of the backend
     conn.execute("CREATE TABLE IF NOT EXISTS commute_cache(key TEXT PRIMARY KEY, payload TEXT, created REAL)")
     return conn
 
@@ -202,6 +215,13 @@ def _cache_put(key: str, payload: dict) -> None:
 
 
 # ---------- the agent ----------
+def home_origin(profile: dict | None, job: dict | None = None):
+    """Where commutes start: My Job's home_address, else the student's profile address, else campus."""
+    if job and job.get("home_address"):
+        return job["home_address"]
+    return (profile or {}).get("address") or CAMPUS
+
+
 def _dest(job: dict):
     return {"lat": job["lat"], "lng": job["lng"]} if job.get("lat") is not None else job["address"]
 
@@ -300,7 +320,6 @@ def get_transit_route(origin: str, destination: str, depart_after: str) -> dict:
 
 def answer_missed_bus(message: str, ctx: dict) -> str:
     """ctx: {"home": str, "employer": str, "address": str, "next_shift": str}"""
-    from google import genai
     from google.genai import types
 
     now = datetime.now(TZ).strftime("%A %Y-%m-%dT%H:%M:%S")
@@ -314,9 +333,8 @@ def answer_missed_bus(message: str, ctx: dict) -> str:
         "will make the shift. If they will be late, say by how much and suggest messaging their manager. "
         "Never invent departure times; use only tool results."
     )
-    client = genai.Client()  # reads GEMINI_API_KEY / GOOGLE_API_KEY
-    resp = client.models.generate_content(
-        model=GEMINI_MODEL,
+    resp = gemini.client().models.generate_content(  # shared client: repo-root GEMINI_API_KEY, timeout
+        model=gemini.model_name(),
         contents=message,
         config=types.GenerateContentConfig(system_instruction=system, tools=[get_transit_route], temperature=0.2),
     )

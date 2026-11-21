@@ -13,7 +13,6 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")  # for TECTONIC_PATH; Gemini is always mocked in tests
 
-import routes_b  # noqa: E402
 from agents import commute, jobdesc, matcher, scout  # noqa: E402
 from agents import profile as profile_agent  # noqa: E402
 from agents import tailor as tailor_agent  # noqa: E402
@@ -76,8 +75,9 @@ def _stub_build(_profile: dict[str, Any], _job: dict[str, Any], _out: Any, out_d
 
 @pytest.fixture()
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
-  """App with a temp DB, no network (Scout falls back to a temp cache), and Gemini mocked out."""
+  """App with a temp DB, no network (Scout falls back to a temp cache, no Maps key), and Gemini mocked out."""
   monkeypatch.setenv("BULLPEN_DB", str(tmp_path / "test.db"))
+  monkeypatch.delenv("GOOGLE_MAPS_API_KEY", raising=False)  # commute agent raises MapsUnavailable unless faked
   monkeypatch.setattr(profile_agent, "extract", lambda *_args: fake_extracted())
   monkeypatch.setattr(matcher, "write_reasons", lambda *_args: {})
   monkeypatch.setattr(tailor_agent, "ask_gemini", lambda *_args: fake_tailor_output())
@@ -89,8 +89,6 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
   monkeypatch.setattr(scout, "LISTINGS_CACHE", cache)
   monkeypatch.setattr(scout, "LISTINGS_SEED", tmp_path / "listings_seed.json")
   monkeypatch.setattr(scout, "PART_TIME_FILE", tmp_path / "part_time_jobs.json")
-  monkeypatch.setattr(routes_b, "DATA", tmp_path / "part_time_jobs.json")  # B's routes read the file directly
-  monkeypatch.setattr(commute, "DB_PATH", str(tmp_path / "test.db"))  # B reads BULLPEN_DB once at import
 
   def offline(*_args: Any, **_kwargs: Any) -> None:
     raise httpx.ConnectError("offline in tests")
@@ -98,3 +96,28 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
   from main import app
   with TestClient(app) as c:
     yield c
+
+
+# A Routes API transit response: 4 min walk, then a 15 min Bull Runner ride (Tue 2026-11-24 14:22 Eastern).
+FAKE_ROUTE: dict[str, Any] = {"routes": [{"duration": "1500s", "distanceMeters": 9000, "legs": [{"steps": [
+  {"travelMode": "WALK", "staticDuration": "240s", "distanceMeters": 300,
+   "navigationInstruction": {"instructions": "Walk to Marshall Student Center"},
+   "polyline": {"encodedPolyline": "_p~iF~ps|U_ulLnnqC"}},
+  {"travelMode": "TRANSIT", "staticDuration": "900s", "polyline": {"encodedPolyline": "_p~iF~ps|U_ulLnnqC"},
+   "transitDetails": {
+    "headsign": "UATC", "stopCount": 4, "transitLine": {"name": "Bull Runner", "nameShort": "BR", "color": "#006747"},
+    "stopDetails": {"departureStop": {"name": "Marshall Student Center"}, "arrivalStop": {"name": "UATC"},
+                    "departureTime": "2026-11-24T19:22:00Z", "arrivalTime": "2026-11-24T19:37:00Z"}}},
+]}]}]}
+
+
+@pytest.fixture()
+def fake_routes(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+  """Teammate B's commute agent without Google: canned transit route, 12 km drive. Returns the request bodies."""
+  calls: list[dict[str, Any]] = []
+
+  def fake_call(body: dict[str, Any], _mask: str) -> dict[str, Any]:
+    calls.append(body)
+    return {"routes": [{"distanceMeters": 12000}]} if body["travelMode"] == "DRIVE" else FAKE_ROUTE
+  monkeypatch.setattr(commute, "_call", fake_call)
+  return calls

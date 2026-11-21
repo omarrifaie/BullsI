@@ -12,7 +12,8 @@ python -m venv .venv
 Put `GEMINI_API_KEY=...` in the repo-root `.env` (optional: `GEMINI_MODEL`, default `gemini-3.8-flash`).
 PDF generation needs the `tectonic` CLI on PATH (`winget install TectonicTypesetting.Tectonic`).
 Commutes (teammate B, `agents/commute.py`) need `GOOGLE_MAPS_API_KEY=...` in the same `.env`: a Google Cloud key
-with the Routes API enabled. Without it, commute objects come back with `minutes: null` and an `error` field.
+with the Routes API enabled. Without it, `/jobs` cards get `commute: null` (scored by straight-line distance),
+`/jobs/{id}/commute` returns `minutes: null` with an `error` field, and the My Job routes return 503.
 Optional: `CAR_FREE_MAX_MIN` (default 45), `HART_FARE` (default 2.00).
 
 ## Run (from `backend/`)
@@ -44,7 +45,7 @@ cached / warnings, so every demo click is served from cache.
 |---|---|---|
 | `GET /health` | A | `{"ok": true, "profile_id", "tectonic", "gemini_key_loaded"}` (booleans only, never the key) |
 | `POST /profile` | A | multipart: files `resume` (PDF), `schedule` (image); optional form fields `name, email, phone, address, work_authorization, transportation, year_in_school, preferred_cities, min_pay, max_commute_minutes` (`preferred_cities` is semicolon separated, e.g. `Tampa, FL; Orlando, FL`). Form values override what's extracted. |
-| `GET /jobs?mode=internship\|parttime[&refresh=true]` | A | ranked job objects (shared contract), cached per profile |
+| `GET /jobs?mode=internship\|parttime[&refresh=true]` | A | ranked job objects (shared contract), cached per profile; part-time jobs carry B's commute from the student's address (null if unavailable) |
 | `GET /jobs/{id}/commute` | B | commute object for a part-time job (404 otherwise); cached in SQLite `commute_cache` |
 | `POST /queue/{id}` | C (stub) | `{"status": "queued", "job_id"}`; also starts a background job-description fetch for internships |
 | `POST /prepare[?refresh=true]` | A | `{"documents": [{job_id, status, resume_url, cover_letter_url, error, warnings, cached}]}` for queued internships; reuses this profile's PDFs |
@@ -55,16 +56,16 @@ cached / warnings, so every demo click is served from cache.
 | `POST /auto?threshold=80` | A | `{"queued": [ids], "documents": [...]}` |
 | `POST /myjob` | B | body `{employer, address, shifts: [{day, start, end}], home_address?}` -> `{"ok": true}` |
 | `GET /myjob` | B | the saved job, or `{}` |
-| `GET /myjob/today` | B | next shift with `leave_by`, `arrive_by`, `minutes`, `cost_usd`, `steps` (404 before `POST /myjob`) |
-| `GET /myjob/calendar.ics` | B | "Leave for ..." events for the next 4 weeks of shifts |
-| `POST /chat` | B | `{"message"}` -> `{"reply"}`; missed-bus help via Gemini calling the Routes API |
+| `GET /myjob/today` | B | next shift with `leave_by`, `arrive_by`, `minutes`, `cost_usd`, `steps` (404 before `POST /myjob`, 503 if the Routes API is unavailable) |
+| `GET /myjob/calendar.ics` | B | "Leave for ..." events for the next 4 weeks of shifts (503 if the Routes API is unavailable) |
+| `POST /chat` | B | `{"message"}` -> `{"reply"}`; missed-bus help via Gemini calling the Routes API (503 if Gemini is unavailable) |
 
 Generated PDFs are served from `/generated/<job_id>/resume.pdf` and `/generated/<job_id>/cover_letter.pdf`.
 
 Teammate B's routes live in `routes_b.py` and are mounted with `app.include_router`. Their helper script (needs
 the Maps key; run from `backend/`): `python -m tools.b_setup bullrunner|geocode|warm`. `geocode` fills `lat`/`lng`
-in `data/part_time_jobs.json`; `warm` caches every job's commute before the demo. B's offline check runs as a
-script, not under pytest: `python test_commute_offline.py`.
+in `data/part_time_jobs.json`; `warm` caches every job's commute from the current profile's address
+before the demo (then call `/jobs?mode=parttime&refresh=true` once so the ranked-jobs cache picks them up).
 
 ## Apply worker (`apply_worker/`)
 

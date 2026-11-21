@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import db  # noqa: E402
 from agents import commute as cm  # noqa: E402
 
 JOBS = Path(__file__).resolve().parent.parent / "data" / "part_time_jobs.json"
@@ -49,8 +50,10 @@ def geocode():
 
 def warm():
     jobs = json.loads(JOBS.read_text())
+    origin = cm.home_origin(db.latest_profile())  # same origin /jobs uses, so these become cache hits
+    print("Origin:", "profile address" if isinstance(origin, str) else "USF campus")
     for j in jobs:
-        c = cm.commute_for_job(j)
+        c = cm.commute_for_job(j, origin)
         print(j["id"], c.get("minutes"), "min", "car-free" if c.get("car_free") else "", c.get("error", ""))
 
 

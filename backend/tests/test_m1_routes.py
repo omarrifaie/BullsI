@@ -57,30 +57,13 @@ def test_jobs_match_contract(client: TestClient) -> None:
   assert client.get("/jobs?mode=bogus").status_code == 422
 
 
-# A Routes API transit response: 4 min walk, then a 15 min Bull Runner ride.
-FAKE_ROUTE: dict[str, Any] = {"routes": [{"duration": "1500s", "distanceMeters": 9000, "legs": [{"steps": [
-  {"travelMode": "WALK", "staticDuration": "240s", "distanceMeters": 300,
-   "navigationInstruction": {"instructions": "Walk to Marshall Student Center"}},
-  {"travelMode": "TRANSIT", "staticDuration": "900s", "transitDetails": {
-    "headsign": "UATC", "stopCount": 4, "transitLine": {"name": "Bull Runner", "nameShort": "BR"},
-    "stopDetails": {"departureStop": {"name": "Marshall Student Center"}, "arrivalStop": {"name": "UATC"},
-                    "departureTime": "2026-11-24T19:22:00Z", "arrivalTime": "2026-11-24T19:37:00Z"}}},
-]}]}]}
-
-
-@pytest.fixture()
-def fake_routes(monkeypatch: pytest.MonkeyPatch) -> None:
-  """Teammate B's commute agent without Google: canned transit route, 12 km drive."""
-  monkeypatch.setattr(commute_agent, "_call", lambda body, _mask: (
-    {"routes": [{"distanceMeters": 12000}]} if body["travelMode"] == "DRIVE" else FAKE_ROUTE))
-
-
-def test_commute_route(client: TestClient, fake_routes: None) -> None:
-  _post_profile(client)
+def test_commute_route(client: TestClient, fake_routes: list[dict[str, Any]]) -> None:
+  profile: dict[str, Any] = _post_profile(client)
   job_id: str = client.get("/jobs?mode=parttime").json()[0]["id"]
   commute: dict[str, Any] = client.get(f"/jobs/{job_id}/commute").json()
   Commute.model_validate(commute)
   assert commute["minutes"] == 25 and commute["car_free"]
+  assert fake_routes and all(body["origin"] == {"address": profile["address"]} for body in fake_routes)  # not campus
   assert client.get("/jobs/job_nope/commute").status_code == 404
 
 
@@ -103,7 +86,8 @@ def test_auto_threshold(client: TestClient) -> None:
   assert len(body["documents"]) == len(body["queued"])
 
 
-def test_myjob_routes(client: TestClient, fake_routes: None, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_myjob_routes(client: TestClient, fake_routes: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch) -> None:
+  monkeypatch.setenv("GEMINI_API_KEY", "test-key")
   monkeypatch.setattr(commute_agent, "answer_missed_bus", lambda message, ctx: f"Next bus for {ctx['employer']}")
   assert client.get("/myjob/today").status_code == 404
   job: dict[str, Any] = {"employer": "Bulls Brew Cafe", "address": "5010 E Fowler Ave, Tampa, FL 33617",

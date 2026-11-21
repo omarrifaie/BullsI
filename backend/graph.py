@@ -1,14 +1,16 @@
 """LangGraph supervisor: one StateGraph, shared state, routes each request to the agents it needs.
 
   profile  : START -> profile -> END
-  jobs     : START -> load_jobs -(cache miss)-> scout -> match -> END
+  jobs     : START -> load_jobs -(cache miss)-> scout (+ commutes for part-time) -> match -> END
   prepare  : START -> tailor -> END
   auto     : START -> load_jobs -> [scout -> match] -> select -> tailor -> END
 
 Caches (SQLite, per profile id, so a new profile never sees stale results):
   ranked jobs   -> cache table, key jobs:<profile_id>:<mode>   (bypass with refresh=True)
   tailored PDFs -> documents table + files in generated/<job_id>/ (reused if this profile made the newest ones)
+  commutes      -> teammate B's commute_cache table (per job, origin and shift)
 """
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Literal, Optional, TypedDict
@@ -16,11 +18,13 @@ from typing import Any, Literal, Optional, TypedDict
 from langgraph.graph import END, START, StateGraph
 
 import db
-from agents import jobdesc, matcher, scout
+from agents import commute, jobdesc, matcher, scout
 from agents import profile as profile_agent
 from agents import tailor as tailor_agent
 from latex.render import LatexError
+from models import Commute
 
+logger: logging.Logger = logging.getLogger("bullpen.graph")
 GENERATED_DIR: Path = Path(__file__).resolve().parent / "generated"
 PREPARE_WORKERS: int = 4
 
@@ -56,8 +60,27 @@ def load_jobs_node(state: BullPenState) -> BullPenState:
   return {"jobs": cached or [], "jobs_cached": cached is not None}
 
 
+def _commute_or_none(job: dict[str, Any], origin: Any) -> Optional[dict[str, Any]]:
+  """Teammate B's commute (served from its cache when warm). Any failure -> None, so the Matcher uses distance."""
+  try:
+    found: dict[str, Any] = commute.commute_for_job(job, origin)
+    if found.get("minutes") is None:  # no key, API error, or no transit route
+      if found.get("error"):
+        logger.warning("No commute for %s: %s", job["id"], found["error"])
+      return None
+    return Commute.model_validate(found).model_dump()
+  except Exception as exc:
+    logger.warning("Commute failed for %s: %s", job["id"], type(exc).__name__)
+    return None
+
+
 def scout_node(state: BullPenState) -> BullPenState:
-  jobs: list[dict[str, Any]] = scout.fetch_internships() if state["mode"] == "internship" else scout.load_part_time()
+  if state["mode"] == "internship":
+    return {"jobs": scout.fetch_internships()}
+  jobs: list[dict[str, Any]] = scout.load_part_time()
+  origin: Any = commute.home_origin(state["profile"])
+  for job in jobs:  # sequential: each lookup may write commute_cache; `b_setup warm` makes these cache hits
+    job["commute"] = _commute_or_none(job, origin)
   return {"jobs": jobs}
 
 

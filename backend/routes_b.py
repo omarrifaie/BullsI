@@ -2,17 +2,22 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
+import httpx
 from fastapi import APIRouter, HTTPException, Response
+from google.genai import errors as genai_errors
 from pydantic import BaseModel
 
+import db
 from agents import commute as cm
+from agents import scout
 
 router = APIRouter()
-DATA = Path(__file__).parent / "data" / "part_time_jobs.json"
+logger = logging.getLogger("bullpen.routes_b")
 
 
 # ---------- models ----------
@@ -35,7 +40,7 @@ class ChatIn(BaseModel):
 
 # ---------- storage ----------
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(cm.DB_PATH)
+    conn = db.connect()  # same absolute bullpen.db as the rest of the backend
     conn.execute("CREATE TABLE IF NOT EXISTS myjob(id INTEGER PRIMARY KEY CHECK(id=1), data TEXT)")
     return conn
 
@@ -47,29 +52,16 @@ def _load_myjob() -> dict | None:
 
 
 def _origin(job: dict | None = None):
-    if job and job.get("home_address"):
-        return job["home_address"]
-    try:
-        from db import get_profile  # Person A's helper; rename here if theirs differs
-        addr = (get_profile() or {}).get("address")
-        if addr:
-            return addr
-    except Exception:
-        pass
-    return cm.CAMPUS
+    return cm.home_origin(db.latest_profile(), job)
 
 
 def _find_job(job_id: str) -> dict | None:
-    try:
-        from db import get_job  # Person A's helper; rename here if theirs differs
-        j = get_job(job_id)
-        if j:
-            return j
-    except Exception:
-        pass
-    if DATA.exists():
-        return next((j for j in json.loads(DATA.read_text()) if j["id"] == job_id), None)
-    return None
+    return scout.find_job(job_id)
+
+
+def _maps_unavailable(e: cm.MapsUnavailable) -> HTTPException:
+    logger.warning("Routes API unavailable: %s", e)
+    return HTTPException(503, f"Commute service unavailable: {e}")
 
 
 def _next_shift(job: dict):
@@ -131,7 +123,10 @@ def myjob_today():
     if not job or not job["shifts"]:
         raise HTTPException(404, "Add your job first")
     shift = _next_shift(job)
-    route, arrive_by = cm.shift_route(job, shift, _origin(job))
+    try:
+        route, arrive_by = cm.shift_route(job, shift, _origin(job))
+    except cm.MapsUnavailable as e:
+        raise _maps_unavailable(e) from e
     if not route:
         raise HTTPException(502, "No transit route found for the next shift")
     leave = cm.leave_by_time(route, arrive_by)
@@ -158,7 +153,10 @@ def myjob_calendar():
     origin = _origin(job)
     events = []
     for shift in job["shifts"]:
-        route, arrive_by = cm.shift_route(job, shift, origin)
+        try:
+            route, arrive_by = cm.shift_route(job, shift, origin)
+        except cm.MapsUnavailable as e:
+            raise _maps_unavailable(e) from e
         if not route:
             continue
         leave = cm.leave_by_time(route, arrive_by)
@@ -193,4 +191,10 @@ def chat(body: ChatIn):
                 "next_shift": f"{s['day']} {s['start']}-{s['end']}"}
     if not isinstance(ctx["home"], str):
         ctx["home"] = "USF campus"
-    return {"reply": cm.answer_missed_bus(body.message, ctx)}
+    if not os.environ.get("GEMINI_API_KEY"):
+        raise HTTPException(503, "Chat unavailable: GEMINI_API_KEY is not set in the repo-root .env")
+    try:
+        return {"reply": cm.answer_missed_bus(body.message, ctx)}
+    except (genai_errors.APIError, httpx.HTTPError) as e:
+        logger.warning("Gemini chat failed: %s", type(e).__name__)
+        raise HTTPException(503, f"Chat unavailable: Gemini request failed ({type(e).__name__})") from e
