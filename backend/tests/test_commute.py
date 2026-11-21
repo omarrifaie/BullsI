@@ -231,3 +231,70 @@ def test_calendar_description_merges_walking(client: TestClient, fake_routes: li
   client.post("/myjob", json=MYJOB)
   ics: str = client.get("/myjob/calendar.ics").text
   assert "DESCRIPTION:Walk 4 min\\n" in ics and "Walk to Marshall Student Center" not in ics
+
+
+# ---------- stale cached dates, leave-by per shift, chat thinking level ----------
+
+def _set_clock(monkeypatch: pytest.MonkeyPatch, now: datetime) -> None:
+  class Clock(datetime):
+    @classmethod
+    def now(cls, tz: Optional[tzinfo] = None) -> datetime:
+      return now.astimezone(tz) if tz else now.replace(tzinfo=None)
+  monkeypatch.setattr(cm, "datetime", Clock)
+
+
+def test_cached_route_moves_to_the_current_week(fixed_clock: None, fake_routes: list[dict[str, Any]],
+                                                monkeypatch: pytest.MonkeyPatch) -> None:
+  shift: dict[str, str] = JOB["shifts"][0]  # Tue 15:00; the fake bus leaves Tue 2026-11-24 14:22 Eastern
+  cm.shift_route(JOB, shift, cm.CAMPUS)
+  monkeypatch.setattr(cm, "_call", lambda *_args: (_ for _ in ()).throw(AssertionError("cache miss")))
+  _set_clock(monkeypatch, datetime(2026, 11, 30, 10, 0, tzinfo=cm.TZ))  # a week later
+  route, arrive_by = cm.shift_route(JOB, shift, cm.CAMPUS)
+  assert route["steps"][1]["depart_iso"].startswith("2026-12-01T14:22:00-05:00")
+  assert cm.leave_by_time(route, arrive_by) == datetime(2026, 12, 1, 14, 18, tzinfo=cm.TZ)
+  _set_clock(monkeypatch, datetime(2027, 3, 15, 10, 0, tzinfo=cm.TZ))  # after DST starts: same wall-clock time
+  route, _ = cm.shift_route(JOB, shift, cm.CAMPUS)
+  assert route["steps"][1]["depart_iso"].startswith("2027-03-16T14:22:00-04:00")
+
+
+def test_leave_by_for_every_shift(fixed_clock: None, monkeypatch: pytest.MonkeyPatch) -> None:
+  from conftest import FAKE_ROUTE
+
+  def thursday_down(body: dict[str, Any], _mask: str) -> dict[str, Any]:
+    if body["travelMode"] == "DRIVE":
+      return {"routes": [{"distanceMeters": 12000}]}
+    if body["arrivalTime"].startswith("2026-11-26"):
+      raise cm.MapsUnavailable("Routes API returned 500: boom")
+    return FAKE_ROUTE
+  monkeypatch.setattr(cm, "_call", thursday_down)
+  plans: list[dict[str, Any]] = cm.commute_for_job(JOB)["shifts"]
+  assert plans[0] == {"shift": JOB["shifts"][0], "leave_by": "14:18", "arrive_by": "14:50", "depart": "14:22",
+                      "minutes": 25}
+  assert plans[1]["shift"]["day"] == "Thu" and plans[1]["leave_by"] is None and "boom" in plans[1]["error"]
+
+
+def test_myjob_today_dates_follow_the_clock(client: TestClient, fake_routes: list[dict[str, Any]],
+                                            monkeypatch: pytest.MonkeyPatch) -> None:
+  _set_clock(monkeypatch, FIXED_NOW)
+  client.post("/myjob", json=MYJOB)
+  today: dict[str, Any] = client.get("/myjob/today").json()
+  assert today["leave_by_iso"].startswith("2026-11-24T14:18")
+  assert today["cost_note"] == "Free with USFCard" and today["origin_label"] == "USF campus"
+  assert [p["leave_by"] for p in today["shifts"]] == ["14:18"]
+  _set_clock(monkeypatch, FIXED_NOW + timedelta(weeks=1))
+  assert client.get("/myjob/today").json()["leave_by_iso"].startswith("2026-12-01T14:18")  # cached, not stale
+  assert "DTSTART:20261208T191800Z" in client.get("/myjob/calendar.ics").text  # Tue Dec 1 + 1 week, 14:18 Eastern
+
+
+def test_chat_uses_low_thinking(monkeypatch: pytest.MonkeyPatch) -> None:
+  from google.genai import types
+  seen: dict[str, Any] = {}
+
+  class Models:
+    def generate_content(self, **kwargs: Any) -> Any:
+      seen.update(kwargs)
+      return type("Resp", (), {"text": "Take the 48 at 15:32."})()
+  monkeypatch.setattr(cm.gemini, "client", lambda: type("Client", (), {"models": Models()})())
+  assert cm.answer_missed_bus("I missed my bus", {"home": "USF campus"}) == "Take the 48 at 15:32."
+  assert seen["config"].thinking_config.thinking_level == types.ThinkingLevel.LOW
+  assert [t.__name__ for t in seen["config"].tools] == ["get_transit_route"]

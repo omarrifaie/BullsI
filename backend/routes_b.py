@@ -138,10 +138,13 @@ def myjob_today():
         "starts_at": starts.isoformat(),
         "arrive_by": arrive_by.astimezone(cm.TZ).strftime("%H:%M"),
         "leave_by": leave.astimezone(cm.TZ).strftime("%H:%M"),
-        "leave_by_iso": leave.isoformat(),
+        "leave_by_iso": leave.astimezone(cm.TZ).isoformat(),  # Eastern, like starts_at
         "minutes": route["minutes"],
         "cost_usd": route["cost_usd"],
+        "cost_note": route.get("cost_note", ""),
+        "origin_label": cm.origin_label(_origin(job)),
         "steps": route["steps"],
+        "shifts": [cm.shift_plan(job, s, _origin(job)) for s in job["shifts"]],  # leave-by for every weekly shift
     }
 
 

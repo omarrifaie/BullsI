@@ -299,10 +299,32 @@ def shift_route(job: dict, shift: dict, origin=None, use_cache: bool = True):
     # "v3": routes cached before the Flamingo Card fare rules have no fare_note and must not be reused.
     key = f"v3|{job.get('id', job['address'])}|{origin}|{shift['day']}{shift['start']}"
     route = _cache_get(key) if use_cache else None
+    if route is not None and route != NO_ROUTE and "requested_arrive_by" not in route:
+        route = None  # cached before routes remembered their arrival time; fetch again
     if route is None:
         route = fetch_transit(origin, _dest(job), arrive_by=arrive_by)
+        if route:
+            route["requested_arrive_by"] = arrive_by.isoformat()
         _cache_put(key, route or NO_ROUTE)  # "no route" is cached too (e.g. the job is at the start point)
-    return (None if route == NO_ROUTE else route), arrive_by
+    if route == NO_ROUTE:
+        return None, arrive_by
+    return _move_to_week_of(route, arrive_by), arrive_by
+
+
+def _move_to_week_of(route: dict, arrive_by: datetime) -> dict:
+    """A cached route keeps the dates it was fetched for. Shift its departure/arrival times by whole weeks (in local
+    time, so DST changes keep the same wall-clock schedule) to the week of this arrive_by."""
+    requested = _parse_iso(route["requested_arrive_by"]).astimezone(TZ)
+    weeks = round((arrive_by.astimezone(TZ).replace(tzinfo=None) - requested.replace(tzinfo=None)) / timedelta(weeks=1))
+    if weeks == 0:
+        return route
+
+    def move(iso: str | None) -> str | None:
+        return (_parse_iso(iso).astimezone(TZ) + timedelta(weeks=weeks)).isoformat() if iso else iso
+
+    steps = [{**s, "depart_iso": move(s.get("depart_iso")), "arrive_iso": move(s.get("arrive_iso"))}
+             if s["mode"] == "TRANSIT" else s for s in route["steps"]]
+    return {**route, "steps": steps, "requested_arrive_by": move(route["requested_arrive_by"])}
 
 
 def leave_by_time(route: dict, arrive_by: datetime) -> datetime:
@@ -312,6 +334,25 @@ def leave_by_time(route: dict, arrive_by: datetime) -> datetime:
         return arrive_by - timedelta(minutes=route["minutes"])
     walk_first = sum(s["minutes"] for s in steps[:i])
     return _parse_iso(steps[i]["depart_iso"]) - timedelta(minutes=walk_first)
+
+
+def _first_bus_depart(route: dict) -> str:
+    return next((s["depart"] for s in route["steps"] if s["mode"] == "TRANSIT"), "")
+
+
+def shift_plan(job: dict, shift: dict, origin, use_cache: bool = True) -> dict:
+    """When to leave for one weekly shift. Never raises: a failed lookup comes back with leave_by None and an error."""
+    plan = {"shift": shift, "leave_by": None, "arrive_by": None, "depart": "", "minutes": None}
+    try:
+        route, arrive_by = shift_route(job, shift, origin, use_cache)
+    except Exception as e:  # API down, bad key, quota
+        return {**plan, "error": str(e)[:200]}
+    plan["arrive_by"] = arrive_by.astimezone(TZ).strftime("%H:%M")
+    if not route:
+        return {**plan, "error": "No route found for this shift"}
+    leave = leave_by_time(route, arrive_by)
+    return {**plan, "leave_by": leave.astimezone(TZ).strftime("%H:%M"), "depart": _first_bus_depart(route),
+            "minutes": route["minutes"]}
 
 
 def commute_for_job(job: dict, origin=None, use_cache: bool = True) -> dict:
@@ -347,6 +388,7 @@ def commute_for_job(job: dict, origin=None, use_cache: bool = True) -> dict:
         "leave_by": leave.astimezone(TZ).strftime("%H:%M"),
         "steps": route["steps"],
         "origin_label": origin_label(origin),
+        "shifts": [shift_plan(job, s, origin, use_cache) for s in shifts],  # leave-by for every weekly shift
     }
 
 
@@ -421,6 +463,10 @@ def answer_missed_bus(message: str, ctx: dict) -> str:
     resp = gemini.client().models.generate_content(  # shared client: repo-root GEMINI_API_KEY, timeout
         model=gemini.model_name(),
         contents=message,
-        config=types.GenerateContentConfig(system_instruction=system, tools=[get_transit_route], temperature=0.2),
+        config=types.GenerateContentConfig(
+            system_instruction=system, tools=[get_transit_route], temperature=0.2,
+            # Default (high) thinking took ~55 s for one missed-bus answer; LOW keeps the chat interactive.
+            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW),
+        ),
     )
     return resp.text or "I couldn't find a route right now. Check the HART app for live departures."
