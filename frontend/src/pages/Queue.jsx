@@ -117,7 +117,7 @@ export default function Queue() {
   return (
     <div className="page q-page">
       <h1>Application queue</h1>
-      <p>Prepare tailored resumes and cover letters, then let BullPen fill the applications for you to review.</p>
+      <p>Prepare tailored resumes and cover letters, then let BullsI fill the applications for you to review.</p>
 
       {error && <p className="q-error" role="alert">Couldn't load your queue: {error}</p>}
       {!error && items === null && <p className="status">Loading your queue…</p>}
@@ -151,7 +151,7 @@ export default function Queue() {
           <section className="q-apply" aria-label="Apply">
             <h2>Apply</h2>
             <p className="q-apply-note">
-              BullPen opens each application in a browser window and fills what your profile answers.
+              BullsI opens each application in a browser window and fills what your profile answers.
               <strong> It never submits.</strong> You review every application and click Submit yourself.
             </p>
             <button type="button" className="q-btn" onClick={apply} disabled={!prepared.length || (applyJobs && !isDone(applyJobs))}>

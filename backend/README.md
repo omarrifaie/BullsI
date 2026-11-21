@@ -1,4 +1,4 @@
-# BullPen backend
+# BullsI backend
 
 FastAPI + SQLite + Gemini. Runs on http://localhost:8000; CORS allows http://localhost:5173.
 

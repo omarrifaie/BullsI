@@ -16,12 +16,11 @@
 .in-card {
   position: relative;
   background: #fff;
-  border: 1px solid var(--bp-rule);
   border-top: 4px solid var(--bp-green);
-  border-radius: 12px;
+  border-radius: var(--bp-radius);
   padding: 24px 28px;
   min-height: 320px;
-  box-shadow: 0 6px 18px rgba(18, 37, 28, 0.12);
+  box-shadow: var(--bp-shadow-lift);
   cursor: grab;
   touch-action: pan-y;
   user-select: none;
@@ -70,9 +69,10 @@
   font-weight: 700;
   min-height: 52px;
   padding: 10px 22px;
-  border-radius: 8px;
+  border-radius: var(--bp-radius-sm);
   border: 2px solid;
   cursor: pointer;
+  transition: background var(--bp-ease), box-shadow var(--bp-ease), transform var(--bp-ease);
   text-align: center;
   text-decoration: none;
 }
@@ -82,5 +82,5 @@
 .in-save { background: var(--bp-green); color: #fff; border-color: var(--bp-green); }
 .page a.in-save { color: #fff; display: inline-block; flex: none; }
 
-.in-empty { background: #fff; border: 1px solid var(--bp-rule); border-radius: 12px; padding: 24px 28px; max-width: 560px; }
+.in-empty { background: #fff; box-shadow: var(--bp-shadow); border-radius: var(--bp-radius); padding: 24px 28px; max-width: 560px; }
 .in-error { color: var(--bp-bad); font-weight: 600; }

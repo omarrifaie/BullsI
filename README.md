@@ -1,4 +1,4 @@
-# BullPen (HackJam)
+# BullsI (HackJam)
 
 ## Frontend (`frontend/`)
 

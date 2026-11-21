@@ -73,7 +73,7 @@ PANEL_JS: str = """({title, company, filled, needs, laterNeeds, yourChoice, colo
     box-shadow:0 4px 16px rgba(0,0,0,.2);font:13px/1.4 system-ui,sans-serif;padding:10px 12px;`);
   panel.id = 'bullpen-panel';
   const head = el('div', '', 'display:flex;justify-content:space-between;gap:8px;align-items:flex-start;');
-  head.append(el('strong', `BullPen: ${title} at ${company}`));
+  head.append(el('strong', `BullsI: ${title} at ${company}`));
   const toggle = el('button', 'Hide', 'font:inherit;border:1px solid #ccc;background:#f6f6f6;border-radius:4px;cursor:pointer;');
   toggle.id = 'bullpen-toggle';
   toggle.type = 'button';
@@ -115,7 +115,7 @@ BANNER_JS: str = """(color) => {
   bar.style.cssText = `position:fixed;top:0;left:0;right:0;z-index:2147483647;background:${color};color:#fff;
     font:15px/1.4 system-ui,sans-serif;padding:10px 16px;display:flex;gap:12px;align-items:center;justify-content:center;`;
   const text = document.createElement('span');
-  text.textContent = 'BullPen: Sign in or create your account, then click Continue in this banner';
+  text.textContent = 'BullsI: Sign in or create your account, then click Continue in this banner';
   const button = document.createElement('button');
   button.id = 'bullpen-continue';
   button.type = 'button';
