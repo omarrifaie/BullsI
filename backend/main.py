@@ -208,7 +208,11 @@ def apply(request: Request) -> dict[str, str]:
   venv_python: Path = APPLY_WORKER_DIR / ".venv" / "Scripts" / "python.exe"
   python: str = str(venv_python) if venv_python.is_file() else sys.executable
   backend_url: str = str(request.base_url).rstrip("/")
-  _apply_proc = subprocess.Popen([python, "apply.py", "--backend", backend_url], cwd=APPLY_WORKER_DIR)
+  args: list[str] = [python, "apply.py", "--backend", backend_url]
+  override: str = os.environ.get("BULLPEN_APPLY_URL_OVERRIDE", "").strip()
+  if override:  # demo safety switch: every queued job opens this page instead of its real apply_url
+    args += ["--apply-url-override", override]
+  _apply_proc = subprocess.Popen(args, cwd=APPLY_WORKER_DIR)
   return {"status": "started"}
 
 

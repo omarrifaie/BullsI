@@ -5,7 +5,7 @@
   color: var(--ink);
   font-family: "Atkinson Hyperlegible", system-ui, sans-serif;
 }
-.mj-page { max-width: 640px; margin: 0 auto; padding: 32px 16px 64px; background: #edf1ee; min-height: 100vh; }
+.mj-page { max-width: 640px; padding: 32px clamp(16px, 4vw, 48px) 64px; box-sizing: content-box; } /* lines up with the shell's .page */
 .mj-page h1 { font-size: 2rem; margin: 0 0 16px; }
 .mj-page h2 { font-size: 1.25rem; margin: 0 0 12px; }
 
@@ -20,14 +20,15 @@
 .mj-shifts th { color: var(--muted); font-weight: 400; }
 .mj-err { color: #8a1c1c; }
 
-.mj-form { display: grid; gap: 14px; margin-bottom: 40px; }
+.mj-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-bottom: 40px; }
 .mj-form label { display: grid; gap: 4px; font-weight: 700; }
 .mj-form input, .mj-form select, .mj-send input {
   font: inherit; font-weight: 400; padding: 10px; border: 1px solid var(--ink); background: #fff; border-radius: 4px; min-height: 44px; box-sizing: border-box;
 }
-.mj-form fieldset { border: 0; border-top: 2px solid var(--ink); padding: 12px 0 0; margin: 0; }
+.mj-form fieldset { border: 0; border-top: 2px solid var(--ink); padding: 12px 0 0; margin: 0; min-width: 0; }
 .mj-form legend { font-weight: 700; padding-right: 8px; }
 .mj-shift { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.mj-shift > select, .mj-shift > input { min-width: 0; flex: 1 1 auto; }
 .mj-x { background: none; border: 0; font-size: 1.5rem; cursor: pointer; color: var(--ink); width: 44px; height: 44px; }
 
 .mj-btn {

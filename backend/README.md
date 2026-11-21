@@ -15,6 +15,10 @@ Commutes (teammate B, `agents/commute.py`) need `GOOGLE_MAPS_API_KEY=...` in the
 with the Routes API enabled. Without it, `/jobs` cards get `commute: null` (scored by straight-line distance),
 `/jobs/{id}/commute` returns `minutes: null` with an `error` field, and the My Job routes return 503.
 Optional: `CAR_FREE_MAX_MIN` (default 45), `HART_FARE` (default 2.00).
+Demo safety switch (optional, off by default): `BULLPEN_APPLY_URL_OVERRIDE=http://localhost:5173/mock-workday/demo`
+makes `POST /apply` open every queued job at that URL instead of its real `apply_url`, so a live demo never touches
+real employer sites. `/queue` still returns the real URLs. Read when `/apply` is called; restart the backend after
+changing it in `.env`.
 
 ## Run (from `backend/`)
 
@@ -51,7 +55,7 @@ cached / warnings, so every demo click is served from cache.
 | `POST /prepare[?refresh=true]` | A | `{"documents": [{job_id, status, resume_url, cover_letter_url, error, warnings, cached}]}` for queued internships; reuses this profile's PDFs |
 | `GET /profile/current` | A | the current profile JSON (400 if none) |
 | `GET /queue` | A | `[{job_id, title, company, apply_url, status, resume_url, cover_letter_url, warnings, cached}]` for the current profile; `status` is `not_prepared` before `/prepare`, URLs are null unless this profile's PDFs exist; `cached` is true when they do (the next `/prepare` reuses them) |
-| `POST /apply` | A | starts `apply_worker/apply.py` as a background process: `{"status": "started"}`, or `{"status": "already_running"}` |
+| `POST /apply` | A | starts `apply_worker/apply.py` as a background process: `{"status": "started"}`, or `{"status": "already_running"}`. With `BULLPEN_APPLY_URL_OVERRIDE` set, every tab opens that URL instead (see below) |
 | `GET /apply/status` | A | `{"jobs": [{job_id, status, filled_count, needs_you}]}` from `apply_worker/status.json`; status is `opening`, `waiting_for_signin`, `filling`, `ready_for_review` or `error` |
 | `POST /auto?threshold=80` | A | `{"queued": [ids], "documents": [...]}` |
 | `POST /myjob` | B | body `{employer, address, shifts: [{day, start, end}], home_address?}` -> `{"ok": true}` |

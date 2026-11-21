@@ -112,11 +112,13 @@ async def open_tabs(jobs: list[dict[str, Any]], profile: dict[str, Any], files: 
     await context.wait_for_event("close", timeout=0)
 
 
-async def run(backend: str) -> None:
+async def run(backend: str, apply_url_override: Optional[str] = None) -> None:
   async with httpx.AsyncClient(base_url=backend, timeout=30) as client:
     profile_res: httpx.Response = await client.get("/profile/current")
     profile_res.raise_for_status()
     queue: list[dict[str, Any]] = (await client.get("/queue")).json()
+    if apply_url_override:  # demo safety switch (BULLPEN_APPLY_URL_OVERRIDE): never open the real postings
+      queue = [{**job, "apply_url": apply_url_override} for job in queue]
     files: list[dict[str, Optional[Path]]] = [await download_documents(client, job) for job in queue]
   if not queue:
     print("Queue is empty. Queue some jobs first.")
@@ -153,8 +155,10 @@ def main() -> None:
   parser.add_argument("--mock", action="store_true", help="fill mock/workday_mock.html with mock/fake_profile.json")
   parser.add_argument("--signin", action="store_true", help="with --mock: show the sign-in page first")
   parser.add_argument("--mock-url", help="with --mock: fill this page instead, e.g. http://localhost:5173/mock-workday/demo")
+  parser.add_argument("--apply-url-override", help="open every queued job at this URL instead of its apply_url")
   args: argparse.Namespace = parser.parse_args()
-  asyncio.run(run_mock(args.signin, args.mock_url) if args.mock else run(args.backend.rstrip("/")))
+  asyncio.run(run_mock(args.signin, args.mock_url) if args.mock
+              else run(args.backend.rstrip("/"), args.apply_url_override))
 
 
 if __name__ == "__main__":

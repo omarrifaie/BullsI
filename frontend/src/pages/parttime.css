@@ -7,7 +7,6 @@
   --rule: #cbd5cf;
   --green: #006747;
   --sign: #f2b705;
-  min-height: 100vh;
   background: var(--ground);
   color: var(--ink);
   font-family: "Atkinson Hyperlegible", system-ui, sans-serif;

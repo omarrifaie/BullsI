@@ -15,7 +15,7 @@ const EXIT_MS = 220; // matches .in-card.leaving transition
 export default function Internships() {
   const [deck, setDeck] = useState(null); // null = loading
   const [error, setError] = useState("");
-  const [queued, setQueued] = useState(0);
+  const [queued, setQueued] = useState(null); // null until GET /queue answers
   const [index, setIndex] = useState(0);
   const [dx, setDx] = useState(0);
   const [leaving, setLeaving] = useState(null); // "left" | "right" while the card animates out
@@ -87,7 +87,7 @@ export default function Internships() {
     <div className="page in-page">
       <div className="in-head">
         <h1>Internships</h1>
-        <Link to="/queue" className="in-counter">Queued: {queued}</Link>
+        <Link to="/queue" className="in-counter">Queued: {queued ?? "…"}</Link>
       </div>
       <p>Swipe right (or press →) to save to your queue, left (←) to skip.</p>
 

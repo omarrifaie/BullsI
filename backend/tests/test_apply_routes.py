@@ -81,6 +81,7 @@ def test_apply_starts_worker_once(client: TestClient, monkeypatch: pytest.Monkey
   def fake_popen(args: list[str], cwd: Path) -> FakeProc:
     calls.append({"args": args, "cwd": cwd})
     return proc
+  monkeypatch.delenv("BULLPEN_APPLY_URL_OVERRIDE", raising=False)
   monkeypatch.setattr(main, "_apply_proc", None)
   monkeypatch.setattr(main.subprocess, "Popen", fake_popen)
   assert client.post("/apply").json() == {"status": "started"}
@@ -90,6 +91,16 @@ def test_apply_starts_worker_once(client: TestClient, monkeypatch: pytest.Monkey
   assert len(calls) == 2
   assert calls[0]["args"][1:] == ["apply.py", "--backend", "http://testserver"]
   assert calls[0]["cwd"] == main.APPLY_WORKER_DIR
+
+
+def test_apply_url_override_is_passed_to_the_worker(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+  calls: list[list[str]] = []
+  monkeypatch.setenv("BULLPEN_APPLY_URL_OVERRIDE", " http://localhost:5173/mock-workday/demo ")
+  monkeypatch.setattr(main, "_apply_proc", None)
+  monkeypatch.setattr(main.subprocess, "Popen", lambda args, cwd: calls.append(args) or FakeProc())
+  assert client.post("/apply").json() == {"status": "started"}
+  assert calls[0][1:] == ["apply.py", "--backend", "http://testserver",
+                          "--apply-url-override", "http://localhost:5173/mock-workday/demo"]
 
 
 def test_init_db_migrates_old_myjob_table(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

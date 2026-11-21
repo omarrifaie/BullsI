@@ -49,6 +49,11 @@ body {
 .nav-link:hover { background: var(--bp-green-tint); }
 .nav-link.active { background: var(--bp-green); color: #fff; }
 .nav-brand:focus-visible, .nav-link:focus-visible { outline: 3px solid var(--bp-green); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .nav { gap: 4px 16px; padding-top: 8px; padding-bottom: 8px; }
+  .nav nav { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+  .nav-link { padding: 8px 10px; white-space: nowrap; }
+}
 
 .banner {
   padding: 12px clamp(16px, 4vw, 48px);
