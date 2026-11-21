@@ -26,14 +26,16 @@ export function BackendStatus() {
 export default function Layout() {
   const { ok } = useHealth();
   return (
-    <>
+    <div className="app">
       <Nav />
       {ok === false && (
         <div className="banner" role="alert">
           Backend not reachable at {API}. Start it with the command in backend/README.md.
         </div>
       )}
-      <Outlet />
-    </>
+      <main className="shell">
+        <Outlet />
+      </main>
+    </div>
   );
 }
