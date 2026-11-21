@@ -1,5 +1,4 @@
 /* Queue page. Uses the shell's --bp-* tokens. */
-.page.q-page { max-width: 1200px; } /* beats the shell's 860px .page */
 .q-page h2 { font-size: 1.5rem; margin: 0 0 8px; }
 
 .q-btn {
