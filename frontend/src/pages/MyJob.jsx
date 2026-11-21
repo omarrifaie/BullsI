@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import TodayCard from "../components/TodayCard";
 import "./myjob.css";
-import { API } from "../components/api";
+import { API, getJson } from "../components/api";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const blankShift = () => ({ day: "Tue", start: "15:00", end: "21:00" });
@@ -9,16 +9,20 @@ const blankShift = () => ({ day: "Tue", start: "15:00", end: "21:00" });
 export default function MyJob() {
   const [form, setForm] = useState({ employer: "", address: "", home_address: "", shifts: [blankShift()] });
   const [status, setStatus] = useState("");
+  const [saved, setSaved] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [chat, setChat] = useState([]);
   const [msg, setMsg] = useState("");
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    fetch(`${API}/myjob`)
-      .then((r) => r.json())
-      .then((j) => j.employer && setForm({ ...j, home_address: j.home_address ?? "" }))
-      .catch(() => {});
+    getJson("/myjob")
+      .then((j) => {
+        if (!j.employer) return;
+        setForm({ ...j, home_address: j.home_address ?? "" });
+        setSaved(true);
+      })
+      .catch(() => {}); // no saved job yet, or backend down: the form just starts empty
   }, []);
 
   const setShift = (i, patch) =>
@@ -28,16 +32,16 @@ export default function MyJob() {
     e.preventDefault();
     setStatus("Saving…");
     try {
-      const r = await fetch(`${API}/myjob`, {
+      await getJson("/myjob", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, home_address: form.home_address || null }),
       });
-      if (!r.ok) throw new Error();
-      setStatus("Saved. Your leave-by time is updated.");
+      setStatus("Saved. Your leave-by times are updated.");
+      setSaved(true);
       setRefreshKey((k) => k + 1);
-    } catch {
-      setStatus("Couldn’t save. Check that the backend is running.");
+    } catch (e) {
+      setStatus(`Couldn’t save: ${e.message}`);
     }
   }
 
@@ -47,15 +51,15 @@ export default function MyJob() {
     setMsg("");
     setSending(true);
     try {
-      const r = await fetch(`${API}/chat`, {
+      const j = await getJson("/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text }),
       });
-      const j = await r.json();
-      setChat((c) => [...c, { from: "bot", text: j.reply ?? "No answer. Check the HART app for live departures." }]);
-    } catch {
-      setChat((c) => [...c, { from: "bot", text: "I couldn’t reach the route service. Check the HART app for live departures." }]);
+      setChat((c) => [...c, { from: "bot", text: j.reply || "No answer. Check the HART app for live departures." }]);
+    } catch (e) {
+      // e.g. 503 "Chat unavailable: GEMINI_API_KEY is not set ..."; the HART app is the fallback either way
+      setChat((c) => [...c, { from: "bot", error: true, text: `${e.message} Check the HART app for live departures.` }]);
     } finally {
       setSending(false);
     }
@@ -64,7 +68,14 @@ export default function MyJob() {
   return (
     <main className="mj-page">
       <h1>My job</h1>
-      <TodayCard refreshKey={refreshKey} />
+      <TodayCard refreshKey={refreshKey} showShifts />
+      {saved && (
+        <p>
+          <a className="mj-btn" href={`${API}/myjob/calendar.ics`} download="bullpen-shifts.ics">
+            Add leave-by reminders to my calendar
+          </a>
+        </p>
+      )}
 
       <form onSubmit={save} className="mj-form">
         <h2>Where and when you work</h2>
@@ -108,7 +119,10 @@ export default function MyJob() {
           I missed my bus, what now?
         </button>
         <ul>
-          {chat.map((m, i) => <li key={i} className={m.from === "me" ? "is-me" : "is-bot"}>{m.text}</li>)}
+          {chat.map((m, i) => (
+            <li key={i} className={m.from === "me" ? "is-me" : `is-bot${m.error ? " mj-err" : ""}`}
+              role={m.error ? "alert" : undefined}>{m.text}</li>
+          ))}
           {sending && <li className="is-bot mj-muted">Checking the next buses…</li>}
         </ul>
         <div className="mj-send">
