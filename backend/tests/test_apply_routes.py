@@ -28,12 +28,12 @@ def test_queue_lists_apply_url_and_documents(client: TestClient) -> None:
   assert set(by_id) == {internship["id"], parttime["id"]}
   done: dict[str, Any] = by_id[internship["id"]]
   assert done["apply_url"] == internship["apply_url"] and done["title"] == internship["title"]
-  assert done["status"] == "ready"
+  assert done["status"] == "ready" and done["cached"] is True
   assert done["resume_url"].endswith(f"/generated/{internship['id']}/resume.pdf")
   assert done["cover_letter_url"].endswith(f"/generated/{internship['id']}/cover_letter.pdf")
   assert client.get(done["resume_url"]).content.startswith(b"%PDF")
   pt: dict[str, Any] = by_id[parttime["id"]]
-  assert pt["status"] == "not_prepared" and pt["resume_url"] is None and pt["warnings"] == []
+  assert pt["status"] == "not_prepared" and pt["resume_url"] is None and pt["warnings"] == [] and pt["cached"] is False
 
 
 def test_delete_queue_removes_only_that_job(client: TestClient) -> None:

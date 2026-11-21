@@ -56,7 +56,7 @@ export default function Queue() {
   const load = useCallback(async () => {
     const [queue, jobs] = await Promise.all([getJson("/queue"), getJson("/jobs?mode=internship").catch(() => [])]);
     const scores = new Map(jobs.map((j) => [j.id, j.match?.score]));
-    return queue.map((q) => ({ ...q, score: scores.get(q.job_id), cached: false, error: null }));
+    return queue.map((q) => ({ ...q, score: scores.get(q.job_id), error: null }));
   }, []);
 
   useEffect(() => {

@@ -179,7 +179,8 @@ def prepare(request: Request, refresh: bool = False) -> dict[str, Any]:
 
 @app.get("/queue")
 def get_queue(request: Request) -> list[dict[str, Any]]:
-  """Queued jobs for the current profile with their apply_url and newest tailored PDFs (for the apply worker)."""
+  """Queued jobs for the current profile with their apply_url and newest tailored PDFs (for the apply worker).
+  `cached` is true when this profile's PDFs are on disk, so the next /prepare reuses them."""
   profile_id: int = _require_profile()["id"]
   out: list[dict[str, Any]] = []
   for job_id in db.get_queue(profile_id):
@@ -193,7 +194,8 @@ def get_queue(request: Request) -> list[dict[str, Any]]:
     public: dict[str, Any] = _public_documents(request, [doc])[0]
     out.append({"job_id": job_id, "title": job["title"], "company": job["company"], "apply_url": job["apply_url"],
                 "status": public["status"], "resume_url": public["resume_url"],
-                "cover_letter_url": public["cover_letter_url"], "warnings": public["warnings"]})
+                "cover_letter_url": public["cover_letter_url"], "warnings": public["warnings"],
+                "cached": public["cached"]})
   return out
 
 

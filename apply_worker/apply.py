@@ -1,7 +1,7 @@
 """BullPen apply worker. Opens one visible Chromium tab per queued job, fills what it can, never submits.
 
 Run by hand: .venv\\Scripts\\python apply.py --backend http://localhost:8000
-Mock run, no backend: .venv\\Scripts\\python apply.py --mock [--signin]
+Mock run, no backend: .venv\\Scripts\\python apply.py --mock [--signin] [--mock-url http://localhost:5173/mock-workday/demo]
 POST /apply on the backend starts this same script as a subprocess.
 """
 import argparse
@@ -138,10 +138,10 @@ def mock_files(folder: Path) -> dict[str, Optional[Path]]:
   return out
 
 
-async def run_mock(signin: bool) -> None:
-  """No backend: the mock Workday page, a fake profile, placeholder PDFs."""
+async def run_mock(signin: bool, mock_url: Optional[str]) -> None:
+  """No backend: the mock Workday page (or mock_url, e.g. the React one), a fake profile, placeholder PDFs."""
   profile: dict[str, Any] = json.loads((MOCK_DIR / "fake_profile.json").read_text(encoding="utf-8"))
-  url: str = (MOCK_DIR / "workday_mock.html").as_uri() + ("?signin=1" if signin else "")
+  url: str = (mock_url or (MOCK_DIR / "workday_mock.html").as_uri()) + ("?signin=1" if signin else "")
   job: dict[str, Any] = {"job_id": "mock", "title": "Software Engineering Intern", "company": "BullPen Test Co",
                          "apply_url": url}
   await open_tabs([job], profile, [mock_files(TMP_DIR / "mock")], StatusFile())
@@ -152,8 +152,9 @@ def main() -> None:
   parser.add_argument("--backend", default="http://localhost:8000")
   parser.add_argument("--mock", action="store_true", help="fill mock/workday_mock.html with mock/fake_profile.json")
   parser.add_argument("--signin", action="store_true", help="with --mock: show the sign-in page first")
+  parser.add_argument("--mock-url", help="with --mock: fill this page instead, e.g. http://localhost:5173/mock-workday/demo")
   args: argparse.Namespace = parser.parse_args()
-  asyncio.run(run_mock(args.signin) if args.mock else run(args.backend.rstrip("/")))
+  asyncio.run(run_mock(args.signin, args.mock_url) if args.mock else run(args.backend.rstrip("/")))
 
 
 if __name__ == "__main__":

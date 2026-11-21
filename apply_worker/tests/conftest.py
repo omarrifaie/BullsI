@@ -1,4 +1,5 @@
-"""Headless runs of the worker against mock/workday_mock.html."""
+"""Headless runs of the worker against mock/workday_mock.html, or the React page with
+--mock-url http://localhost:5173/mock-workday/demo (Vite must be running)."""
 import asyncio
 import json
 import sys
@@ -14,6 +15,15 @@ sys.path.insert(0, str(HERE))
 import apply  # noqa: E402
 
 MOCK_URL: str = (HERE / "mock" / "workday_mock.html").as_uri()
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+  parser.addoption("--mock-url", default=None, help="run the mock tests against this page instead of the HTML mock")
+
+
+def pytest_configure(config: pytest.Config) -> None:
+  global MOCK_URL  # test modules import MOCK_URL after this runs
+  MOCK_URL = config.getoption("--mock-url") or MOCK_URL
 
 # Everything a test wants to know about the mock after the worker is done, read straight from the DOM.
 STATE_JS: str = """() => {

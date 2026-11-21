@@ -50,7 +50,7 @@ cached / warnings, so every demo click is served from cache.
 | `POST /queue/{id}` | C (stub) | `{"status": "queued", "job_id"}`; also starts a background job-description fetch for internships |
 | `POST /prepare[?refresh=true]` | A | `{"documents": [{job_id, status, resume_url, cover_letter_url, error, warnings, cached}]}` for queued internships; reuses this profile's PDFs |
 | `GET /profile/current` | A | the current profile JSON (400 if none) |
-| `GET /queue` | A | `[{job_id, title, company, apply_url, status, resume_url, cover_letter_url, warnings}]` for the current profile; `status` is `not_prepared` before `/prepare`, URLs are null unless this profile's PDFs exist |
+| `GET /queue` | A | `[{job_id, title, company, apply_url, status, resume_url, cover_letter_url, warnings, cached}]` for the current profile; `status` is `not_prepared` before `/prepare`, URLs are null unless this profile's PDFs exist; `cached` is true when they do (the next `/prepare` reuses them) |
 | `POST /apply` | A | starts `apply_worker/apply.py` as a background process: `{"status": "started"}`, or `{"status": "already_running"}` |
 | `GET /apply/status` | A | `{"jobs": [{job_id, status, filled_count, needs_you}]}` from `apply_worker/status.json`; status is `opening`, `waiting_for_signin`, `filling`, `ready_for_review` or `error` |
 | `POST /auto?threshold=80` | A | `{"queued": [ids], "documents": [...]}` |
@@ -89,7 +89,9 @@ Try it without the backend (mock Workday page, fake profile, placeholder PDFs; a
 .venv\Scripts\python apply.py --mock
 ```
 
-Tests (headless, against `mock/workday_mock.html`): `.venv\Scripts\python -m pytest -q tests`
+Tests (headless, against `mock/workday_mock.html`): `.venv\Scripts\python -m pytest -q tests`. The same tests against
+the React page (Vite running): `.venv\Scripts\python -m pytest -q tests --mock-url http://localhost:5173/mock-workday/demo`.
+A headed run against it: `.venv\Scripts\python apply.py --mock --mock-url http://localhost:5173/mock-workday/demo`.
 
 It opens one visible Chromium tab per queued job and never submits: it clicks only Apply, Apply Manually, Save and
 Continue (once, My Information to My Experience) and Add, fills what the profile answers, outlines what's left in

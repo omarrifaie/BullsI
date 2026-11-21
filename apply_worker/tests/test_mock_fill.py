@@ -198,4 +198,6 @@ def test_mock_and_spec_use_the_same_ids() -> None:
   ids += [b["automation_id"] for b in spec["buttons"].values()] + [g["section"] for g in spec["groups"].values()]
   ids += list(spec["date_parts"].values()) + [spec["current_step"]]
   assert [i for i in ids if f'"{i}"' not in html] == []
+  react: str = (HERE.parent / "frontend" / "src" / "pages" / "MockWorkday.jsx").read_text(encoding="utf-8")
+  assert [i for i in ids if f'"{i}"' not in react] == []
   assert [i for i in ids if f"`{i}`" not in md] == []

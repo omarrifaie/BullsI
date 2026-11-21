@@ -26,9 +26,10 @@ export default function App() {
         <Route path="parttime" element={<PartTime />} />
         <Route path="myjob" element={<MyJob />} />
         <Route path="queue" element={<Queue />} />
-        <Route path="mock-workday/:jobId" element={<MockWorkday />} />
         <Route path="*" element={<NotFound />} />
       </Route>
+      {/* Outside Layout: a stand-in employer portal, so no BullPen nav. */}
+      <Route path="mock-workday/:jobId" element={<MockWorkday />} />
     </Routes>
   );
 }
