@@ -32,6 +32,7 @@ class Commute(BaseModel):
   co2_saved_kg_week: float
   steps: list[CommuteStep]
   origin_label: str = ""  # "USF campus" or "Your address" (teammate B's commute agent)
+  co2_source: Optional[dict[str, str]] = None  # {"label", "url"}: where co2_saved_kg_week's per-mile figure comes from
 
 
 class Job(BaseModel):

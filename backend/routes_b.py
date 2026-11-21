@@ -160,11 +160,7 @@ def myjob_calendar():
         if not route:
             continue
         leave = cm.leave_by_time(route, arrive_by)
-        lines = [
-            f"{s['depart']} {s['instruction']} ({s['from_stop']} to {s['to_stop']})"
-            if s["mode"] == "TRANSIT" else f"{s['instruction']} ({s['minutes']} min)"
-            for s in route["steps"]
-        ]
+        lines = cm.describe_steps(route["steps"])
         for week in range(4):  # next four weeks of shifts
             begin = leave + timedelta(days=7 * week)
             events.append({

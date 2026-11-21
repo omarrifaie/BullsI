@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import TodayCard from "../components/TodayCard";
 import "./myjob.css";
+import { API } from "../components/api";
 
-const API = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const blankShift = () => ({ day: "Tue", start: "15:00", end: "21:00" });
 

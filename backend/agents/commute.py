@@ -33,9 +33,18 @@ ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
 
 CAR_FREE_MAX_MIN = int(os.getenv("CAR_FREE_MAX_MIN", "45"))  # badge threshold
 ARRIVE_EARLY_MIN = 10  # arrive this long before a shift starts
-# EPA: a typical passenger vehicle emits about 400 g CO2 per mile (cite on the slide).
+# US EPA, "Greenhouse Gas Emissions from a Typical Passenger Vehicle" (fact sheet EPA-420-F-23-014; page checked
+# 2026-11-21): "The average passenger vehicle emits about 400 grams of CO2 per mile."
 EPA_KG_CO2_PER_MILE = 0.400
-HART_FARE = float(os.getenv("HART_FARE", "2.00"))  # VERIFY the current HART fare before demo
+CO2_SOURCE = {
+    "label": "US EPA: a typical passenger car emits about 400 g of CO2 per mile",
+    "url": "https://www.epa.gov/greenvehicles/greenhouse-gas-emissions-typical-passenger-vehicle",
+}
+# Fares. USF students ride HART Local, Limited Express (LX) and HARTFlex free with a USF Flamingo Card
+# (https://www.usf.edu/transportation); HART Express is not covered. The TECO streetcar is free for everyone.
+HART_FARE = float(os.getenv("HART_FARE", "2.00"))  # HART one-way fare, used only when no free rule applies
+HART_EXPRESS_FARE = float(os.getenv("HART_EXPRESS_FARE", "3.00"))  # VERIFY the current HART Express fare
+FLAMINGO_FREE = "Free with USF Flamingo Card"
 
 DAYS = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6}
 
@@ -110,6 +119,28 @@ def _call(body: dict, mask: str) -> dict:
     return r.json()
 
 
+def _fare(name: str, short: str, agency: str, vehicle: str) -> tuple[float | None, str]:
+    """(one-way fare in USD for a USF student, label). None = fare not known (non-local agency)."""
+    text = f"{name} {short}".lower()
+    if "bull runner" in text:
+        return 0.0, "Free with USFCard"
+    if vehicle == "TRAM" or "streetcar" in text:
+        return 0.0, "TECO streetcar, free for everyone"
+    if "hillsborough area regional transit" not in agency.lower():
+        return None, "Fare not known"
+    limited = "limited express" in text or short.upper().endswith("LX")
+    if not limited and ("express" in text or short.upper().endswith("X")):
+        return HART_EXPRESS_FARE, "HART Express fare (not covered by the Flamingo Card)"
+    return 0.0, FLAMINGO_FREE  # HART Local, Limited Express, HARTFlex
+
+
+def _cost_note(transit: list[dict]) -> str:
+    if not transit:
+        return "Walking only, no fare"
+    notes = list(dict.fromkeys(s["fare_note"] for s in transit))
+    return "; ".join(notes)
+
+
 def _parse_step(s: dict) -> dict:
     poly = (s.get("polyline") or {}).get("encodedPolyline", "")
     t = s.get("transitDetails")
@@ -118,8 +149,9 @@ def _parse_step(s: dict) -> dict:
         sd, line = t.get("stopDetails", {}), t.get("transitLine", {})
         name = line.get("name", "")
         short = line.get("nameShort") or name
-        free = "bull runner" in name.lower()
         agency = ", ".join(a.get("name", "") for a in line.get("agencies") or [])
+        vehicle = (line.get("vehicle") or {}).get("type", "")
+        fare, fare_note = _fare(name, short, agency, vehicle)
         return {
             **base,
             "mode": "TRANSIT",
@@ -135,7 +167,9 @@ def _parse_step(s: dict) -> dict:
             "depart_iso": sd.get("departureTime"),
             "arrive_iso": sd.get("arrivalTime"),
             "stops": t.get("stopCount", 0),
-            "fare_usd": 0.0 if free else HART_FARE,
+            "fare_usd": fare,
+            "fare_note": fare_note,
+            "vehicle": vehicle,
             "instruction": f"Take {short} toward {t.get('headsign', 'end of line')}",
         }
     instr = (s.get("navigationInstruction") or {}).get("instructions") or "Walk"
@@ -160,7 +194,9 @@ def _summarize(r: dict) -> dict:
         "transfers": max(len(transit) - 1, 0),
         "has_transit": bool(transit),
         "local_only": all(_is_local(s["agency"]) for s in transit),  # walking-only routes count as local
-        "cost_usd": round(sum(s["fare_usd"] for s in transit), 2),
+        "cost_usd": None if any(s["fare_usd"] is None for s in transit)
+        else round(sum(s["fare_usd"] for s in transit), 2),
+        "cost_note": _cost_note(transit),
         "steps": steps,
     }
 
@@ -260,8 +296,8 @@ def shift_route(job: dict, shift: dict, origin=None, use_cache: bool = True):
     """Transit route that arrives ARRIVE_EARLY_MIN before the shift. Returns (route|None, arrive_by)."""
     origin = origin or CAMPUS
     arrive_by = next_shift_start(shift["day"], shift["start"]) - timedelta(minutes=ARRIVE_EARLY_MIN)
-    # "v2": routes cached before the local-agency filter have no "local_only" and must not be reused.
-    key = f"v2|{job.get('id', job['address'])}|{origin}|{shift['day']}{shift['start']}"
+    # "v3": routes cached before the Flamingo Card fare rules have no fare_note and must not be reused.
+    key = f"v3|{job.get('id', job['address'])}|{origin}|{shift['day']}{shift['start']}"
     route = _cache_get(key) if use_cache else None
     if route is None:
         route = fetch_transit(origin, _dest(job), arrive_by=arrive_by)
@@ -304,12 +340,30 @@ def commute_for_job(job: dict, origin=None, use_cache: bool = True) -> dict:
         "transfers": route["transfers"],
         "co2_saved_kg_week": co2,
         "cost_usd": route["cost_usd"],
+        "cost_note": route.get("cost_note", ""),
+        "co2_source": CO2_SOURCE,
         "next_shift": shifts[0],
         "arrive_by": arrive_by.astimezone(TZ).strftime("%H:%M"),
         "leave_by": leave.astimezone(TZ).strftime("%H:%M"),
         "steps": route["steps"],
         "origin_label": origin_label(origin),
     }
+
+
+def describe_steps(steps: list[dict]) -> list[str]:
+    """Plain-text directions: one line per bus, consecutive walking steps merged into one "Walk N min" line."""
+    lines: list[str] = []
+    walk: int | None = None  # minutes of the walk in progress; None = not walking
+    for s in steps + [{"mode": "END"}]:
+        if s["mode"] not in ("TRANSIT", "END"):
+            walk = (walk or 0) + s.get("minutes", 0)
+            continue
+        if walk is not None:
+            lines.append(f"Walk {walk} min" if walk else "Walk under 1 min")
+            walk = None
+        if s["mode"] == "TRANSIT":
+            lines.append(f"{s['depart']} {s['instruction']} ({s['from_stop']} to {s['to_stop']}), arrive {s['arrive']}")
+    return lines
 
 
 def warm_cache(jobs: list[dict], origin=None) -> None:

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import "../pages/myjob.css";
-
-const API = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+import { API } from "./api";
 
 // Drop <TodayCard /> on Person C's home screen. Change refreshKey to reload it after saving a job.
 export default function TodayCard({ refreshKey = 0 }) {

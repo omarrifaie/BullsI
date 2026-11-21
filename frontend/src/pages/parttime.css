@@ -64,6 +64,12 @@
 .rm-map { width: 100%; height: 260px; margin: 16px 0; background: var(--ground); border: 1px solid var(--rule); }
 .rm-error, .pt-err { color: #8a1c1c; font-size: 0.95rem; margin: 12px 0; }
 .pt-arrive { margin: 0 0 16px; font-size: 1.05rem; line-height: 1.4; }
+.pt-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 16px; margin: -8px 0 16px; padding: 0; font-size: 0.9rem; }
+.pt-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.pt-swatch { width: 22px; height: 6px; border-radius: 3px; display: inline-block; }
+.pt-swatch.is-walk { height: 0; border-top: 3px dashed; border-radius: 0; background: none; }
+.pt-source { display: block; font-size: 0.8rem; font-weight: 400; color: var(--muted); text-underline-offset: 2px; }
+.pt-meta .pt-source { display: inline; }
 
 .pt-steps { list-style: none; margin: 0; padding: 0; }
 .pt-steps li { display: grid; grid-template-columns: 48px 14px minmax(0, 1fr); gap: 10px; padding-bottom: 14px; position: relative; }

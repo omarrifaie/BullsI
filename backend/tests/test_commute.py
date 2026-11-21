@@ -183,3 +183,51 @@ def test_chat_503_when_gemini_fails(client: TestClient, monkeypatch: pytest.Monk
   monkeypatch.setattr(cm, "answer_missed_bus", gemini_down)
   res = client.post("/chat", json={"message": "I missed the bus"})
   assert res.status_code == 503 and "Gemini request failed" in res.json()["detail"]
+
+
+# ---------- fares (USF Flamingo Card), CO2 source, merged walking steps ----------
+
+@pytest.mark.parametrize("name,short,agency,vehicle,fare,note", [
+  ("40th Street", "5", "Hillsborough Area Regional Transit", "BUS", 0.0, "Free with USF Flamingo Card"),
+  ("New Tampa Limited Express", "275", "Hillsborough Area Regional Transit", "BUS", 0.0, "Free with USF Flamingo Card"),
+  ("Airport", "60LX", "Hillsborough Area Regional Transit", "BUS", 0.0, "Free with USF Flamingo Card"),
+  ("Brandon Express", "20X", "Hillsborough Area Regional Transit", "BUS", 3.0,
+   "HART Express fare (not covered by the Flamingo Card)"),
+  ("TECO Line Streetcar", "", "Hillsborough Area Regional Transit", "TRAM", 0.0, "TECO streetcar, free for everyone"),
+  ("Bull Runner C", "C", "University of South Florida", "BUS", 0.0, "Free with USFCard"),
+  ("FlixBus", "FlixBus", "FlixBus", "BUS", None, "Fare not known"),
+])
+def test_student_fares(name: str, short: str, agency: str, vehicle: str, fare: Optional[float], note: str) -> None:
+  assert cm._fare(name, short, agency, vehicle) == (fare, note)
+
+
+def test_route_cost_note_and_unknown_fares(fixed_clock: None, monkeypatch: pytest.MonkeyPatch) -> None:
+  express: dict[str, Any] = _transit_route(30, "20X", "Hillsborough Area Regional Transit")
+  monkeypatch.setattr(cm, "_call", lambda body, _mask: (
+    {"routes": [{"distanceMeters": 12000}]} if body["travelMode"] == "DRIVE" else {"routes": [express]}))
+  out: dict[str, Any] = cm.commute_for_job(JOB)
+  assert out["cost_usd"] == 3.0 and out["cost_note"] == "HART Express fare (not covered by the Flamingo Card)"
+  assert cm.parse_route({"routes": [FLIXBUS]})["cost_usd"] is None
+  assert cm.parse_route({"routes": [{"duration": "600s", "legs": [{"steps": [
+    {"travelMode": "WALK", "staticDuration": "600s"}]}]}]})["cost_note"] == "Walking only, no fare"
+
+
+def test_commute_carries_co2_source(fixed_clock: None, fake_routes: list[dict[str, Any]]) -> None:
+  out: dict[str, Any] = cm.commute_for_job(JOB)
+  assert out["co2_source"]["url"].startswith("https://www.epa.gov/") and "400 g" in out["co2_source"]["label"]
+  assert out["cost_note"] == "Free with USFCard"
+
+
+def test_describe_steps_merges_walking() -> None:
+  walk: dict[str, Any] = {"mode": "WALK", "minutes": 2}
+  bus: dict[str, Any] = {"mode": "TRANSIT", "depart": "08:28", "arrive": "08:34", "instruction": "Take 48 toward Netpark",
+                         "from_stop": "Holly Dr", "to_stop": "Fowler Av @ 51st St"}
+  assert cm.describe_steps([walk, walk, bus, walk, walk, walk]) == [
+    "Walk 4 min", "08:28 Take 48 toward Netpark (Holly Dr to Fowler Av @ 51st St), arrive 08:34", "Walk 6 min"]
+  assert cm.describe_steps([bus, {"mode": "WALK", "minutes": 0}, bus])[1] == "Walk under 1 min"
+
+
+def test_calendar_description_merges_walking(client: TestClient, fake_routes: list[dict[str, Any]]) -> None:
+  client.post("/myjob", json=MYJOB)
+  ics: str = client.get("/myjob/calendar.ics").text
+  assert "DESCRIPTION:Walk 4 min\\n" in ics and "Walk to Marshall Student Center" not in ics
