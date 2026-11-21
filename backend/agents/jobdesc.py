@@ -1,8 +1,14 @@
 """Job description fetcher for queued internships. Greenhouse/Lever public JSON APIs, else Gemini URL context.
-Hard 10 s budget, never raises, result (including "not found") cached per job id so each job pays at most once."""
+
+POST /queue starts a background fetch (30 s budget). /prepare waits at most 10 s for it, then goes title-only;
+the background fetch keeps running and caches its result for later. Never raises. Results (including "not found")
+are cached per job id so each job is fetched at most once."""
 import html
 import logging
 import re
+import threading
+from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from typing import Any, Optional
 
 import httpx
@@ -14,7 +20,8 @@ import gemini
 
 logger: logging.Logger = logging.getLogger("bullpen.jobdesc")
 
-TIMEOUT_S: float = 10.0
+TIMEOUT_S: float = 30.0  # background fetch budget (Gemini URL context measured at 14-23 s)
+WAIT_S: float = 10.0  # longest /prepare waits for an in-flight fetch
 MAX_CHARS: int = 6000
 GREENHOUSE_RE: re.Pattern[str] = re.compile(
   r"^https://(?:boards|job-boards)(?:\.eu)?\.greenhouse\.io/(?P<board>[\w-]+)/jobs/(?P<id>\d+)")
@@ -56,15 +63,21 @@ def _gemini_url_context(url: str) -> str:
     tools=[types.Tool(url_context=types.UrlContext())],
     timeout_ms=int(TIMEOUT_S * 1000),
   )
+  if not out.found:
+    logger.warning("Gemini could not read a description from %s", url.split("/")[2])
   return out.description if out.found else ""
 
 
-def fetch(job: dict[str, Any]) -> Optional[str]:
-  """Description text, or None. Never raises."""
-  key: str = f"jd:{job['id']}"
-  cached: Optional[str] = db.cache_get(key)
-  if cached is not None:
-    return cached or None
+_pool: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="jobdesc")
+_inflight: dict[str, Future[str]] = {}
+_inflight_lock: threading.Lock = threading.Lock()
+
+
+def _key(job: dict[str, Any]) -> str:
+  return f"jd:{job['id']}"
+
+
+def _fetch_and_cache(job: dict[str, Any]) -> str:
   url: str = job.get("apply_url") or ""
   text: str = ""
   try:
@@ -75,7 +88,41 @@ def fetch(job: dict[str, Any]) -> Optional[str]:
     elif url.startswith("https://"):
       text = _gemini_url_context(url)
   except Exception as exc:
-    logger.info("No description for %s (%s)", job["id"], type(exc).__name__)
+    logger.warning("No description for %s (%s: %s)", job["id"], type(exc).__name__, str(exc)[:120])
   text = text.strip()[:MAX_CHARS]
-  db.cache_set(key, text)
-  return text or None
+  try:
+    db.cache_set(_key(job), text)
+  finally:
+    with _inflight_lock:
+      _inflight.pop(job["id"], None)
+  return text
+
+
+def prefetch(job: dict[str, Any]) -> Optional[Future[str]]:
+  """Start a background fetch unless one is cached or already running. Returns immediately."""
+  if db.cache_get(_key(job)) is not None:
+    return None
+  with _inflight_lock:
+    future: Optional[Future[str]] = _inflight.get(job["id"])
+    if future is None:
+      future = _pool.submit(_fetch_and_cache, job)
+      _inflight[job["id"]] = future
+  return future
+
+
+def fetch(job: dict[str, Any], wait_s: float = WAIT_S) -> Optional[str]:
+  """Description text, or None. Waits at most wait_s for the (possibly already running) fetch. Never raises."""
+  cached: Optional[str] = db.cache_get(_key(job))
+  if cached is not None:
+    return cached or None
+  future: Optional[Future[str]] = prefetch(job)
+  if future is None:  # finished between the two checks
+    return db.cache_get(_key(job)) or None
+  try:
+    return future.result(timeout=wait_s) or None
+  except FutureTimeout:
+    logger.info("Description for %s still loading after %ss; using title only", job["id"], wait_s)
+    return None
+  except Exception as exc:  # e.g. the cache write failed in the background thread
+    logger.warning("Description fetch for %s failed (%s)", job["id"], type(exc).__name__)
+    return None

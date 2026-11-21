@@ -82,6 +82,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
   monkeypatch.setattr(tailor_agent, "ask_gemini", lambda *_args: fake_tailor_output())
   monkeypatch.setattr(tailor_agent, "build_documents", _stub_build)
   monkeypatch.setattr(jobdesc, "fetch", lambda _job: None)
+  monkeypatch.setattr(jobdesc, "prefetch", lambda _job: None)
   cache: Path = tmp_path / "listings_cache.json"
   cache.write_text(json.dumps(RAW_LISTINGS), encoding="utf-8")
   monkeypatch.setattr(scout, "LISTINGS_CACHE", cache)

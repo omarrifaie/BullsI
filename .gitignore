@@ -19,3 +19,5 @@ backend/data/listings_cache.json
 
 # playwright login sessions (never commit these)
 apply_worker/browser_profile/
+apply_worker/status.json
+apply_worker/tmp/

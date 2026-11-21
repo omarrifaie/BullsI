@@ -1,0 +1,71 @@
+{
+  "_note": "Workday data-automation-id map. verified=false means a standard Workday id not yet checked against a live posting (W3). mock_only=true means real Workday generates this id per company, so the worker matches by label_match instead.",
+  "buttons": {
+    "apply": {"automation_id": "adventureButton", "text": "Apply", "verified": false},
+    "apply_manually": {"automation_id": "applyManually", "text": "Apply Manually", "verified": false},
+    "autofill_with_resume": {"automation_id": "autofillWithResume", "text": "Autofill with Resume", "verified": false},
+    "next": {"automation_id": "bottom-navigation-next-button", "text": "Save and Continue", "verified": false},
+    "add": {"automation_id": "add-button", "text": "Add", "verified": false}
+  },
+  "signin_markers": ["signInContent", "createAccountContent"],
+  "other_mock_ids": [
+    {"automation_id": "jobPostingHeader", "label": "Job title on the posting page", "page": "posting"},
+    {"automation_id": "signInContent", "label": "Sign-in page wrapper (worker waits for the student here)", "page": "signin"},
+    {"automation_id": "signInEmail", "label": "Sign-in email (worker never types here)", "page": "signin"},
+    {"automation_id": "password", "label": "Sign-in password (worker never types here)", "page": "signin"},
+    {"automation_id": "signInSubmitButton", "label": "Sign In button (student clicks it)", "page": "signin"},
+    {"automation_id": "createAccountLink", "label": "Create Account link", "page": "signin"},
+    {"automation_id": "progressBarInactiveStep", "label": "Progress steps that are not current", "page": "all"}
+  ],
+  "current_step": "progressBarActiveStep",
+  "pages": {
+    "my_information": "My Information",
+    "my_experience": "My Experience",
+    "review": "Review"
+  },
+  "groups": {
+    "work_experience": {"section": "workExperienceSection", "entry_prefix": "workExperience-", "profile_list": "experience", "verified": false},
+    "education": {"section": "educationSection", "entry_prefix": "education-", "profile_list": "education", "verified": false}
+  },
+  "fields": [
+    {"page": "my_information", "automation_id": "sourcePrompt", "profile_field": "how_heard", "type": "dropdown", "label": "How Did You Hear About Us?", "required": true, "verified": false},
+    {"page": "my_information", "automation_id": "countryDropdown", "profile_field": "country", "type": "dropdown", "label": "Country", "required": true, "verified": false},
+    {"page": "my_information", "automation_id": "legalNameSection_firstName", "profile_field": "first_name", "type": "text", "label": "First Name", "required": true, "verified": false},
+    {"page": "my_information", "automation_id": "legalNameSection_lastName", "profile_field": "last_name", "type": "text", "label": "Last Name", "required": true, "verified": false},
+    {"page": "my_information", "automation_id": "addressSection_addressLine1", "profile_field": "address_line1", "type": "text", "label": "Address Line 1", "required": true, "verified": false},
+    {"page": "my_information", "automation_id": "addressSection_city", "profile_field": "city", "type": "text", "label": "City", "required": true, "verified": false},
+    {"page": "my_information", "automation_id": "addressSection_countryRegion", "profile_field": "state", "type": "dropdown", "label": "State", "required": true, "verified": false},
+    {"page": "my_information", "automation_id": "addressSection_postalCode", "profile_field": "postal_code", "type": "text", "label": "Postal Code", "required": true, "verified": false},
+    {"page": "my_information", "automation_id": "email", "profile_field": "email", "type": "text", "label": "Email Address", "required": true, "verified": false},
+    {"page": "my_information", "automation_id": "phone-device-type", "profile_field": "phone_type", "type": "dropdown", "label": "Phone Device Type", "required": true, "verified": false},
+    {"page": "my_information", "automation_id": "phone-number", "profile_field": "phone", "type": "text", "label": "Phone Number", "required": true, "verified": false},
+    {"page": "my_information", "automation_id": "workAuthorizationQuestion", "profile_field": "authorized_to_work", "type": "dropdown", "label": "Are you legally authorized to work in the United States?", "label_match": "authori[sz]ed to work", "required": true, "verified": false, "mock_only": true},
+    {"page": "my_information", "automation_id": "sponsorshipQuestion", "profile_field": "needs_sponsorship", "type": "dropdown", "label": "Will you now or in the future require sponsorship?", "label_match": "sponsorship", "required": true, "verified": false, "mock_only": true},
+
+    {"page": "my_experience", "group": "work_experience", "automation_id": "jobTitle", "profile_field": "experience[].title", "type": "text", "label": "Job Title", "required": true, "verified": false},
+    {"page": "my_experience", "group": "work_experience", "automation_id": "company", "profile_field": "experience[].organization", "type": "text", "label": "Company", "required": true, "verified": false},
+    {"page": "my_experience", "group": "work_experience", "automation_id": "location", "profile_field": "experience[].location", "type": "text", "label": "Location", "required": false, "verified": false},
+    {"page": "my_experience", "group": "work_experience", "automation_id": "currentlyWorkHere", "profile_field": "experience[].current", "type": "checkbox", "label": "I currently work here", "required": false, "verified": false},
+    {"page": "my_experience", "group": "work_experience", "automation_id": "formField-startDate", "profile_field": "experience[].start", "type": "date", "label": "From", "required": true, "verified": false},
+    {"page": "my_experience", "group": "work_experience", "automation_id": "formField-endDate", "profile_field": "experience[].end", "type": "date", "label": "To", "required": false, "verified": false},
+    {"page": "my_experience", "group": "work_experience", "automation_id": "description", "profile_field": "experience[].bullets", "type": "textarea", "label": "Role Description", "required": false, "verified": false},
+    {"page": "my_experience", "group": "education", "automation_id": "school", "profile_field": "education[].school", "type": "text", "label": "School or University", "required": true, "verified": false},
+    {"page": "my_experience", "group": "education", "automation_id": "degree", "profile_field": "education[].degree", "type": "dropdown", "label": "Degree", "required": true, "verified": false},
+    {"page": "my_experience", "group": "education", "automation_id": "fieldOfStudy", "profile_field": "education[].major", "type": "text", "label": "Field of Study", "required": false, "verified": false},
+    {"page": "my_experience", "group": "education", "automation_id": "gpa", "profile_field": "education[].gpa", "type": "text", "label": "Overall Result (GPA)", "required": false, "verified": false},
+    {"page": "my_experience", "group": "education", "automation_id": "formField-lastYearAttended", "profile_field": "education[].graduation", "type": "date", "label": "To (Actual or Expected)", "required": false, "verified": false},
+    {"page": "my_experience", "automation_id": "file-upload-input-ref", "profile_field": "resume_pdf + cover_letter_pdf", "type": "file", "label": "Resume/CV and Cover Letter", "required": true, "verified": false}
+  ],
+  "date_parts": {"month": "dateSectionMonth-input", "year": "dateSectionYear-input"},
+  "voluntary": {
+    "section": "voluntaryDisclosuresSection",
+    "label_pattern": "voluntary|self.?identif|veteran|disab|gender|race|ethnic|hispanic|latino|\\bsex\\b",
+    "fields": [
+      {"page": "my_experience", "automation_id": "gender", "type": "dropdown", "label": "Gender", "mock_only": true},
+      {"page": "my_experience", "automation_id": "ethnicityDropdown", "type": "dropdown", "label": "Race/Ethnicity", "mock_only": true},
+      {"page": "my_experience", "automation_id": "hispanicOrLatino", "type": "dropdown", "label": "Are you Hispanic or Latino?", "mock_only": true},
+      {"page": "my_experience", "automation_id": "veteranStatus", "type": "dropdown", "label": "Veteran Status", "mock_only": true},
+      {"page": "my_experience", "automation_id": "disabilityStatus", "type": "checkbox", "label": "I have a disability (or previously had a disability)", "mock_only": true}
+    ]
+  }
+}

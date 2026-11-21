@@ -1,5 +1,7 @@
 """M5: cover-letter tech-term check, job description fetching, LangGraph routing, and per-profile caching."""
 import copy
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
 import pytest
@@ -14,7 +16,8 @@ from test_m1_routes import _post_profile
 
 JOB: dict[str, Any] = {"id": "job_x", "title": "Data Intern", "company": "Jabil", "address": "Tampa, FL",
                        "skills": ["SQL"], "meta": {}, "apply_url": ""}
-REAL_FETCH: Any = jobdesc.fetch  # captured before conftest's `client` fixture stubs it out
+REAL_FETCH: Any = jobdesc.fetch  # captured before conftest's `client` fixture stubs these out
+REAL_PREFETCH: Any = jobdesc.prefetch
 
 
 # ---------- tech-term check ----------
@@ -80,6 +83,7 @@ class FakeResponse:
 def jd_env(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
   """Real jobdesc.fetch (conftest stubs it), temp DB from `client`, recorded HTTP + Gemini calls."""
   monkeypatch.setattr(jobdesc, "fetch", REAL_FETCH)
+  monkeypatch.setattr(jobdesc, "prefetch", REAL_PREFETCH)
   calls: dict[str, Any] = {"http": [], "gemini": []}
 
   def fake_get(url: str, timeout: float) -> FakeResponse:
@@ -102,7 +106,7 @@ def _job(url: str, job_id: str = "job_jd") -> dict[str, Any]:
 
 def test_greenhouse_uses_public_api(jd_env: dict[str, Any]) -> None:
   text: Optional[str] = jobdesc.fetch(_job("https://job-boards.greenhouse.io/method/jobs/8208724003", "job_gh"))
-  assert jd_env["http"] == [("https://boards-api.greenhouse.io/v1/boards/method/jobs/8208724003", 10.0)]
+  assert jd_env["http"] == [("https://boards-api.greenhouse.io/v1/boards/method/jobs/8208724003", 30.0)]
   assert text == "Build & ship data pipelines"
   assert jd_env["gemini"] == []
 
@@ -114,10 +118,64 @@ def test_lever_uses_public_api(jd_env: dict[str, Any]) -> None:
   assert text == "Lever intro\nRequirements\nSQL"
 
 
-def test_other_urls_use_gemini_url_context_with_10s_timeout(jd_env: dict[str, Any]) -> None:
+def test_other_urls_use_gemini_url_context_with_30s_background_timeout(jd_env: dict[str, Any]) -> None:
   assert jobdesc.fetch(_job("https://jobs.ashbyhq.com/acme/123", "job_ash")) == "From URL context"
   kwargs: dict[str, Any] = jd_env["gemini"][0]
-  assert kwargs["timeout_ms"] == 10000 and kwargs["tools"][0].url_context is not None
+  assert kwargs["timeout_ms"] == 30000 and kwargs["tools"][0].url_context is not None
+
+
+def _slow_gemini(monkeypatch: pytest.MonkeyPatch, seconds: float, calls: list[int]) -> None:
+  def slow(*_a: Any, **_k: Any) -> jobdesc.FetchedDescription:
+    calls.append(1)
+    time.sleep(seconds)
+    return jobdesc.FetchedDescription(found=True, description="Slow page text")
+  monkeypatch.setattr(jobdesc.gemini, "generate_json", slow)
+
+
+def test_prepare_waits_at_most_wait_s_then_background_finishes(jd_env: dict[str, Any],
+                                                                monkeypatch: pytest.MonkeyPatch) -> None:
+  calls: list[int] = []
+  _slow_gemini(monkeypatch, 0.6, calls)
+  job: dict[str, Any] = _job("https://jobs.ashbyhq.com/acme/slow", "job_slowpage")
+  jobdesc.prefetch(job)  # what POST /queue does
+  start: float = time.monotonic()
+  assert jobdesc.fetch(job, wait_s=0.1) is None  # /prepare gives up -> title-only
+  assert time.monotonic() - start < 0.4
+  assert jobdesc.fetch(job, wait_s=5) == "Slow page text"  # same background fetch, not a new one
+  assert jobdesc.fetch(job) == "Slow page text" and calls == [1]  # now cached
+
+
+def test_concurrent_prefetches_share_one_fetch(jd_env: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
+  calls: list[int] = []
+  _slow_gemini(monkeypatch, 0.2, calls)
+  job: dict[str, Any] = _job("https://jobs.ashbyhq.com/acme/dupe", "job_dupe")
+  with ThreadPoolExecutor(max_workers=6) as pool:
+    list(pool.map(lambda _i: jobdesc.prefetch(job), range(6)))
+  assert jobdesc.fetch(job, wait_s=5) == "Slow page text" and calls == [1]
+
+
+def test_queue_starts_background_fetch_with_unchanged_response(client: TestClient,
+                                                               monkeypatch: pytest.MonkeyPatch) -> None:
+  started: list[str] = []
+  monkeypatch.setattr(jobdesc, "prefetch", lambda job: started.append(job["id"]))
+  _post_profile(client)
+  internship: str = client.get("/jobs?mode=internship").json()[0]["id"]
+  parttime: str = client.get("/jobs?mode=parttime").json()[0]["id"]
+  assert client.post(f"/queue/{internship}").json() == {"status": "queued", "job_id": internship}
+  assert client.post(f"/queue/{parttime}").json() == {"status": "queued", "job_id": parttime}
+  assert started == [internship]  # part-time jobs have no posting to fetch
+
+
+def test_health_reports_status_without_leaking_key(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+  monkeypatch.setenv("GEMINI_API_KEY", "sk-secret-value-123")
+  monkeypatch.setenv("TECTONIC_PATH", "C:/definitely/not/tectonic.exe")
+  res = client.get("/health")
+  assert res.json() == {"ok": True, "profile_id": None, "tectonic": False, "gemini_key_loaded": True}
+  assert "sk-secret" not in res.text
+  _post_profile(client)
+  monkeypatch.delenv("GEMINI_API_KEY")
+  assert client.get("/health").json()["gemini_key_loaded"] is False
+  assert client.get("/health").json()["profile_id"] == 1
 
 
 def test_failures_return_none_and_are_cached(jd_env: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:

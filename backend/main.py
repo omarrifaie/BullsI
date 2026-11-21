@@ -1,6 +1,10 @@
 """BullPen backend. /profile, /jobs, /prepare, /auto run through the LangGraph supervisor (graph.py).
 Teammate-owned routes are stubs."""
+import json
 import logging
+import os
+import subprocess
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, AsyncIterator, Literal, Optional
@@ -17,8 +21,9 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 import db  # noqa: E402
 import graph  # noqa: E402
-from agents import scout  # noqa: E402
+from agents import jobdesc, scout  # noqa: E402
 from fake_data import FAKE_COMMUTE, FAKE_PARTTIME  # noqa: E402
+from latex.render import tectonic_path  # noqa: E402
 from models import Job  # noqa: E402
 
 logger: logging.Logger = logging.getLogger("bullpen")
@@ -26,6 +31,8 @@ GENERATED_DIR: Path = graph.GENERATED_DIR
 GENERATED_DIR.mkdir(exist_ok=True)
 MAX_UPLOAD_BYTES: int = 10 * 1024 * 1024
 SCHEDULE_MIMES: set[str] = {"image/png", "image/jpeg", "image/webp"}
+APPLY_WORKER_DIR: Path = Path(__file__).resolve().parent.parent / "apply_worker"
+_apply_proc: Optional[subprocess.Popen[bytes]] = None
 
 
 @asynccontextmanager
@@ -74,6 +81,23 @@ def _public_documents(request: Request, docs: list[dict[str, Any]]) -> list[dict
     out.append({"job_id": d["job_id"], "status": d["status"], **urls, "error": d.get("error"),
                 "warnings": d.get("warnings") or [], "cached": bool(d.get("cached"))})
   return out
+
+
+@app.get("/health")
+def health() -> dict[str, Any]:
+  """Liveness for teammates. Reports whether the key is loaded, never the key itself."""
+  exe: Optional[str] = tectonic_path()
+  return {
+    "ok": True,
+    "profile_id": _current_profile_id(),
+    "tectonic": bool(exe) and Path(exe).is_file(),
+    "gemini_key_loaded": bool(os.environ.get("GEMINI_API_KEY")),
+  }
+
+
+@app.get("/profile/current")
+def current_profile() -> dict[str, Any]:
+  return _require_profile()
 
 
 @app.post("/profile")
@@ -134,8 +158,10 @@ def get_commute(job_id: str) -> dict[str, Any]:
 # Owned by teammate C. Stub.
 @app.post("/queue/{job_id}")
 def queue_job(job_id: str) -> dict[str, Any]:
-  _find_job(job_id)
+  job: dict[str, Any] = _find_job(job_id)
   db.add_to_queue(_current_profile_id(), job_id)
+  if job["mode"] == "internship":
+    jobdesc.prefetch(job)  # background, returns immediately; /prepare waits at most 10 s for it
   return {"status": "queued", "job_id": job_id}
 
 
@@ -148,10 +174,46 @@ def prepare(request: Request, refresh: bool = False) -> dict[str, Any]:
   return {"documents": _public_documents(request, state["documents"])}
 
 
-# Owned by teammate C. Stub.
+@app.get("/queue")
+def get_queue(request: Request) -> list[dict[str, Any]]:
+  """Queued jobs for the current profile with their apply_url and newest tailored PDFs (for the apply worker)."""
+  profile_id: int = _require_profile()["id"]
+  out: list[dict[str, Any]] = []
+  for job_id in db.get_queue(profile_id):
+    job: dict[str, Any] = _find_job(job_id)
+    doc: Optional[dict[str, Any]] = graph._cached_document(profile_id, job_id)  # only this profile's PDFs on disk
+    if doc is None:
+      latest: Optional[dict[str, Any]] = db.latest_document(job_id)
+      mine: bool = latest is not None and latest["profile_id"] == profile_id
+      doc = {"job_id": job_id, "status": latest["status"] if mine else "not_prepared",
+             "error": latest.get("error") if mine else None, "warnings": latest["warnings"] if mine else []}
+    public: dict[str, Any] = _public_documents(request, [doc])[0]
+    out.append({"job_id": job_id, "title": job["title"], "company": job["company"], "apply_url": job["apply_url"],
+                "status": public["status"], "resume_url": public["resume_url"],
+                "cover_letter_url": public["cover_letter_url"], "warnings": public["warnings"]})
+  return out
+
+
 @app.post("/apply")
-def apply() -> dict[str, str]:
+def apply(request: Request) -> dict[str, str]:
+  """Start the Playwright apply worker (apply_worker/apply.py) unless one is already running."""
+  global _apply_proc
+  if _apply_proc is not None and _apply_proc.poll() is None:
+    return {"status": "already_running"}
+  venv_python: Path = APPLY_WORKER_DIR / ".venv" / "Scripts" / "python.exe"
+  python: str = str(venv_python) if venv_python.is_file() else sys.executable
+  backend_url: str = str(request.base_url).rstrip("/")
+  _apply_proc = subprocess.Popen([python, "apply.py", "--backend", backend_url], cwd=APPLY_WORKER_DIR)
   return {"status": "started"}
+
+
+@app.get("/apply/status")
+def apply_status() -> dict[str, Any]:
+  """Per-job progress the worker writes to apply_worker/status.json."""
+  path: Path = APPLY_WORKER_DIR / "status.json"
+  if not path.is_file():
+    return {"jobs": []}
+  return json.loads(path.read_text(encoding="utf-8"))
 
 
 @app.post("/auto")
