@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS documents (
   resume_url TEXT,
   cover_letter_url TEXT,
   error TEXT,
+  warnings TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (profile_id, job_id)
 );
@@ -62,6 +63,9 @@ def _db() -> Iterator[sqlite3.Connection]:
 def init_db() -> None:
   with _db() as conn:
     conn.executescript(SCHEMA)
+    columns: set[str] = {row["name"] for row in conn.execute("PRAGMA table_info(documents)")}
+    if "warnings" not in columns:  # bullpen.db files created before M5
+      conn.execute("ALTER TABLE documents ADD COLUMN warnings TEXT")
 
 
 def save_profile(profile: dict[str, Any]) -> int:
@@ -96,10 +100,23 @@ def get_queue(profile_id: Optional[int]) -> list[str]:
 def save_document(profile_id: Optional[int], doc: dict[str, Any]) -> None:
   with _db() as conn:
     conn.execute(
-      "INSERT OR REPLACE INTO documents (profile_id, job_id, status, resume_url, cover_letter_url, error)"
-      " VALUES (?, ?, ?, ?, ?, ?)",
-      (profile_id, doc["job_id"], doc["status"], doc.get("resume_url"), doc.get("cover_letter_url"), doc.get("error")),
+      "INSERT OR REPLACE INTO documents (profile_id, job_id, status, resume_url, cover_letter_url, error, warnings)"
+      " VALUES (?, ?, ?, ?, ?, ?, ?)",
+      (profile_id, doc["job_id"], doc["status"], doc.get("resume_url"), doc.get("cover_letter_url"), doc.get("error"),
+       json.dumps(doc.get("warnings") or [])),
     )
+
+
+def latest_document(job_id: str) -> Optional[dict[str, Any]]:
+  """Newest document row for a job across all profiles (files in generated/<job_id>/ belong to this row)."""
+  with _db() as conn:
+    row: Optional[sqlite3.Row] = conn.execute(
+      "SELECT * FROM documents WHERE job_id = ? ORDER BY rowid DESC LIMIT 1", (job_id,)).fetchone()
+  if row is None:
+    return None
+  doc: dict[str, Any] = dict(row)
+  doc["warnings"] = json.loads(doc["warnings"] or "[]")
+  return doc
 
 
 def cache_get(key: str) -> Optional[Any]:

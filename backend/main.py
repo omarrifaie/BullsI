@@ -1,6 +1,6 @@
-"""BullPen backend. Real: /profile, /jobs, /prepare, /auto. Teammate-owned routes are stubs."""
+"""BullPen backend. /profile, /jobs, /prepare, /auto run through the LangGraph supervisor (graph.py).
+Teammate-owned routes are stubs."""
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, AsyncIterator, Literal, Optional
@@ -16,15 +16,13 @@ from starlette.concurrency import run_in_threadpool
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 import db  # noqa: E402
-from agents import matcher, scout  # noqa: E402
-from agents import profile as profile_agent  # noqa: E402
-from agents import tailor as tailor_agent  # noqa: E402
+import graph  # noqa: E402
+from agents import scout  # noqa: E402
 from fake_data import FAKE_COMMUTE, FAKE_PARTTIME  # noqa: E402
-from latex.render import LatexError  # noqa: E402
 from models import Job  # noqa: E402
 
 logger: logging.Logger = logging.getLogger("bullpen")
-GENERATED_DIR: Path = Path(__file__).resolve().parent / "generated"
+GENERATED_DIR: Path = graph.GENERATED_DIR
 GENERATED_DIR.mkdir(exist_ok=True)
 MAX_UPLOAD_BYTES: int = 10 * 1024 * 1024
 SCHEDULE_MIMES: set[str] = {"image/png", "image/jpeg", "image/webp"}
@@ -60,46 +58,22 @@ def _require_profile() -> dict[str, Any]:
   return profile
 
 
-def _ranked_jobs(mode: str) -> list[dict[str, Any]]:
-  """Scout + Matcher. Output is validated against the contract (drops internal 'meta')."""
-  profile: dict[str, Any] = _require_profile()
-  jobs: list[dict[str, Any]] = scout.fetch_internships() if mode == "internship" else scout.load_part_time()
-  return [Job.model_validate(j).model_dump() for j in matcher.rank(profile, jobs)]
-
-
 def _current_profile_id() -> Optional[int]:
   profile: Optional[dict[str, Any]] = db.latest_profile()
   return profile["id"] if profile else None
 
 
-def _prepare_one(request: Request, profile: dict[str, Any], job: dict[str, Any]) -> dict[str, Any]:
-  doc: dict[str, Any] = {"job_id": job["id"], "status": "error", "resume_url": None, "cover_letter_url": None, "error": None}
-  try:
-    tailor_agent.run(profile, job, GENERATED_DIR / job["id"])
-  except (tailor_agent.TailorValidationError, LatexError) as exc:
-    doc["error"] = str(exc)
-    return doc
-  except Exception as exc:
-    logger.exception("Tailor failed for %s", job["id"])
-    doc["error"] = f"Tailor agent failed: {type(exc).__name__}"
-    return doc
-  doc["status"] = "ready"
-  doc["resume_url"] = str(request.url_for("generated", path=f"{job['id']}/resume.pdf"))
-  doc["cover_letter_url"] = str(request.url_for("generated", path=f"{job['id']}/cover_letter.pdf"))
-  return doc
-
-
-def _prepare(request: Request, job_ids: list[str]) -> list[dict[str, Any]]:
-  """Tailor + compile resume and cover letter for each queued internship. One failure never sinks the batch."""
-  profile: dict[str, Any] = _require_profile()
-  jobs: list[dict[str, Any]] = [
-    j for j in (scout.find_job(i) for i in job_ids) if j is not None and j["mode"] == "internship"
-  ]
-  with ThreadPoolExecutor(max_workers=4) as pool:  # each job writes only its own generated/<job_id>/ folder
-    docs: list[dict[str, Any]] = list(pool.map(lambda job: _prepare_one(request, profile, job), jobs))
-  for doc in docs:
-    db.save_document(profile["id"], doc)
-  return docs
+def _public_documents(request: Request, docs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+  """Graph stores paths relative to /generated; the API returns absolute URLs."""
+  out: list[dict[str, Any]] = []
+  for d in docs:
+    urls: dict[str, Optional[str]] = {
+      key: str(request.url_for("generated", path=d[key])) if d.get(key) else None
+      for key in ("resume_url", "cover_letter_url")
+    }
+    out.append({"job_id": d["job_id"], "status": d["status"], **urls, "error": d.get("error"),
+                "warnings": d.get("warnings") or [], "cached": bool(d.get("cached"))})
+  return out
 
 
 @app.post("/profile")
@@ -132,19 +106,22 @@ async def create_profile(
     "year_in_school": year_in_school, "preferred_cities": preferred_cities,
     "min_pay": min_pay, "max_commute_minutes": max_commute_minutes,
   }
+  uploads: dict[str, Any] = {"resume": resume_bytes, "schedule": schedule_bytes, "schedule_mime": schedule_mime,
+                             "form": form}
   try:
-    profile: dict[str, Any] = await run_in_threadpool(
-      profile_agent.run, resume_bytes, schedule_bytes, schedule_mime, form)
+    state: graph.BullPenState = await run_in_threadpool(graph.run, {"action": "profile", "uploads": uploads})
   except Exception as exc:
     logger.exception("Profile agent failed")
     raise HTTPException(status_code=502, detail=f"Profile extraction failed: {type(exc).__name__}") from exc
-  profile["id"] = db.save_profile(profile)
-  return profile
+  return state["profile"]
 
 
 @app.get("/jobs")
-def get_jobs(mode: Literal["internship", "parttime"] = Query(...)) -> list[dict[str, Any]]:
-  return _ranked_jobs(mode)
+def get_jobs(mode: Literal["internship", "parttime"] = Query(...), refresh: bool = False) -> list[dict[str, Any]]:
+  """Ranked jobs, cached per profile; refresh=true re-runs Scout + Matcher."""
+  state: graph.BullPenState = graph.run(
+    {"action": "jobs", "profile": _require_profile(), "mode": mode, "refresh": refresh})
+  return [Job.model_validate(j).model_dump() for j in state["jobs"]]
 
 
 # Owned by teammate B. Stub.
@@ -163,8 +140,12 @@ def queue_job(job_id: str) -> dict[str, Any]:
 
 
 @app.post("/prepare")
-def prepare(request: Request) -> dict[str, Any]:
-  return {"documents": _prepare(request, db.get_queue(_current_profile_id()))}
+def prepare(request: Request, refresh: bool = False) -> dict[str, Any]:
+  """Tailored PDFs for every queued internship; reuses this profile's earlier PDFs unless refresh=true."""
+  profile: dict[str, Any] = _require_profile()
+  state: graph.BullPenState = graph.run(
+    {"action": "prepare", "profile": profile, "queue": db.get_queue(profile["id"]), "refresh": refresh})
+  return {"documents": _public_documents(request, state["documents"])}
 
 
 # Owned by teammate C. Stub.
@@ -175,11 +156,10 @@ def apply() -> dict[str, str]:
 
 @app.post("/auto")
 def auto(request: Request, threshold: int = Query(80, ge=0, le=100)) -> dict[str, Any]:
-  profile_id: Optional[int] = _current_profile_id()
-  picked: list[str] = [j["id"] for j in _ranked_jobs("internship") if j["match"]["score"] >= threshold]
-  for job_id in picked:
-    db.add_to_queue(profile_id, job_id)
-  return {"queued": picked, "documents": _prepare(request, picked)}
+  """Queue and prepare every internship scoring at or above threshold."""
+  state: graph.BullPenState = graph.run(
+    {"action": "auto", "profile": _require_profile(), "mode": "internship", "threshold": threshold})
+  return {"queued": state["queue"], "documents": _public_documents(request, state["documents"])}
 
 
 # Owned by teammate B. Stubs.

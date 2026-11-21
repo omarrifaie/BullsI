@@ -31,10 +31,10 @@ API docs: http://localhost:8000/docs
 | Route | Owner | Notes |
 |---|---|---|
 | `POST /profile` | A | multipart: files `resume` (PDF), `schedule` (image); optional form fields `name, email, phone, address, work_authorization, transportation, year_in_school, preferred_cities, min_pay, max_commute_minutes` (`preferred_cities` is semicolon separated, e.g. `Tampa, FL; Orlando, FL`). Form values override what's extracted. |
-| `GET /jobs?mode=internship\|parttime` | A | ranked job objects (shared contract) |
+| `GET /jobs?mode=internship\|parttime[&refresh=true]` | A | ranked job objects (shared contract), cached per profile |
 | `GET /jobs/{id}/commute` | B (stub) | commute object |
 | `POST /queue/{id}` | C (stub) | `{"status": "queued", "job_id"}` |
-| `POST /prepare` | A | `{"documents": [{job_id, status, resume_url, cover_letter_url, error}]}` for queued internships |
+| `POST /prepare[?refresh=true]` | A | `{"documents": [{job_id, status, resume_url, cover_letter_url, error, warnings, cached}]}` for queued internships; reuses this profile's PDFs |
 | `POST /apply` | C (stub) | `{"status": "started"}` |
 | `POST /auto?threshold=80` | A | `{"queued": [ids], "documents": [...]}` |
 | `POST /myjob`, `GET /myjob/today`, `GET /myjob/calendar.ics`, `POST /chat` | B (stubs) | |
@@ -42,3 +42,6 @@ API docs: http://localhost:8000/docs
 Generated PDFs are served from `/generated/<job_id>/resume.pdf` and `/generated/<job_id>/cover_letter.pdf`.
 
 There is no auth. The "current profile" is the most recent `POST /profile`.
+
+`/profile`, `/jobs`, `/prepare` and `/auto` run through one LangGraph `StateGraph` (`graph.py`). Ranked jobs and
+tailored PDFs are cached per profile in SQLite, so repeat demo calls never wait on Gemini; pass `refresh=true` to redo.

@@ -32,7 +32,8 @@ def client() -> genai.Client:
     return _client
 
 
-def generate_json(contents: list[Any], schema: type[T], system: Optional[str] = None) -> T:
+def generate_json(contents: list[Any], schema: type[T], system: Optional[str] = None,
+                  tools: Optional[list[types.Tool]] = None, timeout_ms: Optional[int] = None) -> T:
   response: types.GenerateContentResponse = client().models.generate_content(
     model=model_name(),
     contents=contents,
@@ -43,6 +44,8 @@ def generate_json(contents: list[Any], schema: type[T], system: Optional[str] = 
       temperature=0.2,
       # Default (high) thinking hit a 504 after ~89s on resume+schedule; LOW finishes in ~13s.
       thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW),
+      tools=tools,
+      http_options=types.HttpOptions(timeout=timeout_ms) if timeout_ms else None,
     ),
   )
   return schema.model_validate_json(response.text or "")

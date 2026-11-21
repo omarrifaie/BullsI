@@ -13,7 +13,7 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")  # for TECTONIC_PATH; Gemini is always mocked in tests
 
-from agents import matcher, scout  # noqa: E402
+from agents import jobdesc, matcher, scout  # noqa: E402
 from agents import profile as profile_agent  # noqa: E402
 from agents import tailor as tailor_agent  # noqa: E402
 from fake_data import FAKE_PROFILE  # noqa: E402
@@ -81,6 +81,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
   monkeypatch.setattr(matcher, "write_reasons", lambda *_args: {})
   monkeypatch.setattr(tailor_agent, "ask_gemini", lambda *_args: fake_tailor_output())
   monkeypatch.setattr(tailor_agent, "build_documents", _stub_build)
+  monkeypatch.setattr(jobdesc, "fetch", lambda _job: None)
   cache: Path = tmp_path / "listings_cache.json"
   cache.write_text(json.dumps(RAW_LISTINGS), encoding="utf-8")
   monkeypatch.setattr(scout, "LISTINGS_CACHE", cache)

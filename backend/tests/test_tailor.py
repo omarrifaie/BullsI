@@ -59,7 +59,8 @@ def test_tailor_retries_once_then_fails(monkeypatch: pytest.MonkeyPatch) -> None
   assert len(calls) == 2
   responses: list[tailor_agent.TailorOutput] = [bad, fake_tailor_output()]
   monkeypatch.setattr(tailor_agent, "ask_gemini", lambda *_a: responses.pop(0))
-  assert [b.id for b in tailor_agent.tailor(FAKE_PROFILE, JOB).bullets] == ["exp1_b2", "proj1_b1"]
+  out, warnings = tailor_agent.tailor(FAKE_PROFILE, JOB)
+  assert [b.id for b in out.bullets] == ["exp1_b2", "proj1_b1"] and warnings == []
 
 
 def test_resume_groups_bullets_under_their_entries() -> None:
