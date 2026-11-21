@@ -15,6 +15,10 @@ dist/
 backend/generated/*
 !backend/generated/.gitkeep
 *.db
+backend/data/listings_cache.json
 
 # playwright login sessions (never commit these)
 apply_worker/browser_profile/
+apply_worker/status.json
+apply_worker/tmp/
+.claude/settings.local.json

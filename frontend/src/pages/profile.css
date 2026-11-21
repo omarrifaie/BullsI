@@ -1,0 +1,58 @@
+/* Profile page (summary + signup form). Uses the shell's --bp-* tokens. */
+.pf-card {
+  background: #fff;
+  border-radius: var(--bp-radius);
+  box-shadow: var(--bp-shadow);
+  padding: 24px 28px;
+}
+.pf-card h2 { margin: 0 0 12px; font-size: 1.6rem; }
+.pf-card h3 { margin: 20px 0 8px; font-size: 1rem; color: var(--bp-gold-ink); text-transform: uppercase; letter-spacing: 0.04em; }
+
+.pf-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 24px; margin: 0; }
+.pf-facts dt { font-size: 0.85rem; color: var(--bp-muted); font-weight: 600; }
+.pf-facts dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+
+.pf-chips { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.pf-chips li { background: var(--bp-green-tint); color: var(--bp-green); font-weight: 600; padding: 4px 12px; border-radius: 999px; font-size: 0.95rem; }
+
+.pf-week { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.pf-week strong { display: inline-block; width: 3.5em; }
+
+.pf-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+
+.pf-form { display: grid; gap: 14px; max-width: 560px; }
+.pf-field { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.pf-field input, .pf-field select {
+  font: inherit;
+  font-weight: 400;
+  padding: 10px;
+  border: 1px solid var(--bp-rule);
+  border-radius: 8px;
+  background: #fff;
+  min-height: 44px;
+  transition: border-color var(--bp-ease), box-shadow var(--bp-ease);
+}
+.pf-field input:hover, .pf-field select:hover { border-color: var(--bp-muted); }
+.pf-field input:focus-visible, .pf-field select:focus-visible { outline: 3px solid var(--bp-green); outline-offset: 1px; }
+
+.pf-btn {
+  font: inherit;
+  font-weight: 700;
+  min-height: 48px;
+  padding: 10px 22px;
+  border: 2px solid var(--bp-green);
+  border-radius: var(--bp-radius-sm);
+  background: var(--bp-green);
+  color: #fff;
+  cursor: pointer;
+  transition: background var(--bp-ease), color var(--bp-ease), box-shadow var(--bp-ease), transform var(--bp-ease);
+  justify-self: start;
+}
+.pf-btn:hover:not(:disabled) { background: var(--bp-green-dark); border-color: var(--bp-green-dark); box-shadow: var(--bp-shadow); transform: translateY(-1px); }
+.pf-btn:disabled { opacity: 0.6; cursor: progress; }
+.pf-btn-ghost { background: #fff; color: var(--bp-green); }
+.pf-btn-ghost:hover:not(:disabled) { background: var(--bp-green-tint); color: var(--bp-green-dark); }
+.pf-btn:focus-visible { outline: 3px solid var(--bp-green); outline-offset: 2px; }
+.pf-form + .pf-btn-ghost { margin-top: 12px; }
+
+.pf-error { color: var(--bp-bad); font-weight: 600; margin: 0; }

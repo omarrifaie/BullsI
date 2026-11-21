@@ -1,0 +1,40 @@
+{
+  "name": "Alex Rivera",
+  "email": "alexrivera@usf.edu",
+  "phone": "(813) 555-0142",
+  "address": "4202 E Fowler Ave, Tampa, FL 33620",
+  "work_authorization": "citizen",
+  "education": [
+    {
+      "school": "University of South Florida",
+      "degree": "B.S.",
+      "major": "Computer Science",
+      "gpa": "3.7",
+      "graduation": "May 2028",
+      "year_in_school": "sophomore"
+    }
+  ],
+  "experience": [
+    {
+      "id": "exp1",
+      "title": "IT Help Desk Assistant",
+      "organization": "USF Information Technology",
+      "location": "Tampa, FL",
+      "start": "Aug 2025",
+      "end": "Present",
+      "bullets": [
+        {
+          "id": "exp1_b1",
+          "text": "Resolved 40+ weekly student tickets for Wi-Fi, Canvas, and account access issues"
+        },
+        {
+          "id": "exp1_b2",
+          "text": "Wrote a Python script that auto-tags tickets, cutting triage time by 30%"
+        }
+      ]
+    }
+  ],
+  "country": "United States of America",
+  "phone_device_type": "Mobile",
+  "how_heard": ""
+}

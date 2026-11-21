@@ -1,0 +1,134 @@
+/* App shell and theme tokens. B's pages scope their own variables under .pt-page / .mj-page and point them at these. */
+:root {
+  --bp-green: #006747;
+  --bp-green-dark: #004d35;
+  --bp-green-tint: #e6f2ec;
+  --bp-gold: #cfc493;
+  --bp-gold-ink: #7a6a1f;
+  --bp-gold-tint: #f7f3e1;
+  --bp-ink: #13241c;
+  --bp-muted: #4f6157;
+  --bp-ground: #f3f7f4;
+  --bp-rule: #d3ddd6;
+  --bp-warn-bg: #fff4d6;
+  --bp-warn-ink: #5c4300;
+  --bp-bad: #b3261e;
+  --bp-bad-tint: #fbe7e5;
+  --bp-radius: 14px;
+  --bp-radius-sm: 10px;
+  --bp-shadow: 0 1px 2px rgba(16, 40, 28, 0.06), 0 8px 24px rgba(16, 40, 28, 0.08);
+  --bp-shadow-lift: 0 2px 4px rgba(16, 40, 28, 0.08), 0 14px 32px rgba(16, 40, 28, 0.14);
+  --bp-ease: 180ms ease;
+  --bp-font: "Atkinson Hyperlegible Next Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 420px at 50% -160px, rgba(207, 196, 147, 0.28), transparent 70%),
+    linear-gradient(180deg, #f5f8f5 0%, #e9f0eb 100%) fixed;
+  background-color: var(--bp-ground);
+  color: var(--bp-ink);
+  font-family: var(--bp-font);
+  font-size: 18px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { letter-spacing: -0.015em; }
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 10px clamp(16px, 4vw, 48px);
+  background: var(--bp-green);
+  box-shadow: 0 2px 10px rgba(0, 40, 25, 0.25);
+  position: relative;
+  z-index: 5;
+}
+.nav nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.nav-brand {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--bp-radius-sm);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  transition: transform var(--bp-ease), box-shadow var(--bp-ease);
+}
+.nav-brand:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22); }
+.nav-brand img { display: block; height: 36px; width: auto; }
+.nav-link {
+  position: relative;
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--bp-ease), color var(--bp-ease);
+}
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 2px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--bp-gold);
+  transform: scaleX(0);
+  transition: transform var(--bp-ease);
+}
+.nav-link:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.nav-link.active { color: #fff; }
+.nav-link.active::after { transform: scaleX(1); }
+.nav-brand:focus-visible, .nav-link:focus-visible { outline: 3px solid var(--bp-gold); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .nav { flex-wrap: wrap; gap: 6px 16px; padding-top: 8px; padding-bottom: 4px; }
+  .nav-brand { order: -1; }
+  .nav nav { flex-wrap: nowrap; overflow-x: auto; width: 100%; gap: 0; margin: 0 -6px; }
+  .nav-link { padding: 8px 6px; font-size: 0.85rem; white-space: nowrap; }
+  .nav-link::after { left: 6px; right: 6px; }
+}
+
+.banner {
+  padding: 12px clamp(16px, 4vw, 48px);
+  background: var(--bp-warn-bg);
+  color: var(--bp-warn-ink);
+  border-bottom: 1px solid #e8cf7a;
+  font-weight: 600;
+}
+
+.page { max-width: 860px; padding: 32px clamp(16px, 4vw, 48px) 64px; }
+.page h1 { font-size: 2rem; font-weight: 800; line-height: 1.2; margin: 0 0 12px; }
+.page h2 { font-weight: 700; }
+.page a { color: var(--bp-green); text-underline-offset: 3px; transition: color var(--bp-ease); }
+.page a:hover { color: var(--bp-green-dark); }
+.status { color: var(--bp-muted); }
+.status-bad { color: var(--bp-bad); font-weight: 600; }
+
+/* components/AgentSteps: progress list for slow agent calls (Internships, Queue). */
+.agent-steps {
+  list-style: none;
+  padding: 20px 24px;
+  margin: 24px 0;
+  display: grid;
+  gap: 10px;
+  background: #fff;
+  border-radius: var(--bp-radius);
+  box-shadow: var(--bp-shadow);
+}
+.agent-steps li { color: var(--bp-muted); padding-left: 32px; position: relative; transition: color var(--bp-ease); }
+.agent-steps li::before { content: "○"; position: absolute; left: 4px; }
+.agent-steps li.active { color: var(--bp-ink); font-weight: 700; }
+.agent-steps li.active::before { content: "◐"; color: var(--bp-green); animation: agent-spin 1s linear infinite; }
+.agent-steps li.done::before { content: "✓"; color: var(--bp-green); }
+@keyframes agent-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}

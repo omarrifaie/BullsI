@@ -1,0 +1,50 @@
+.mj-page, .mj-today {
+  --ink: var(--bp-ink); --muted: var(--bp-muted); --rule: var(--bp-rule); --green: var(--bp-green); --sign: var(--bp-gold-ink);
+  color: var(--ink);
+  font-family: var(--bp-font);
+}
+.mj-page { max-width: 640px; padding: 32px clamp(16px, 4vw, 48px) 64px; box-sizing: content-box; } /* lines up with the shell's .page */
+.mj-page h1 { font-size: 2rem; margin: 0 0 16px; }
+.mj-page h2 { font-size: 1.25rem; margin: 0 0 12px; }
+
+.mj-today { background: #fff; border-left: 6px solid var(--green); border-radius: var(--bp-radius); box-shadow: var(--bp-shadow); padding: 16px 20px; margin-bottom: 32px; }
+.mj-today p { margin: 0 0 8px; line-height: 1.4; }
+.mj-leave { font-size: 2.6rem; font-weight: 700; color: var(--green); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.mj-leave span { font-size: 1rem; font-weight: 400; color: var(--muted); margin-right: 8px; }
+.mj-muted { color: var(--muted); }
+.mj-shifts { width: 100%; border-collapse: collapse; margin-top: 12px; font-variant-numeric: tabular-nums; }
+.mj-shifts caption { text-align: left; font-weight: 700; padding-bottom: 6px; }
+.mj-shifts th, .mj-shifts td { text-align: left; padding: 6px 8px 6px 0; border-bottom: 1px solid var(--rule); }
+.mj-shifts th { color: var(--muted); font-weight: 400; }
+.mj-err { color: #8a1c1c; }
+
+.mj-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-bottom: 40px; }
+.mj-form label { display: grid; gap: 4px; font-weight: 700; }
+.mj-form input, .mj-form select, .mj-send input {
+  font: inherit; font-weight: 400; padding: 10px; border: 1px solid var(--rule); background: #fff; border-radius: 8px; min-height: 44px; box-sizing: border-box;
+}
+.mj-form fieldset { border: 0; border-top: 2px solid var(--ink); padding: 12px 0 0; margin: 0; min-width: 0; }
+.mj-form legend { font-weight: 700; padding-right: 8px; }
+.mj-shift { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.mj-shift > select, .mj-shift > input { min-width: 0; flex: 1 1 auto; }
+.mj-x { background: none; border: 0; font-size: 1.5rem; cursor: pointer; color: var(--ink); width: 44px; height: 44px; }
+
+.mj-btn {
+  display: inline-block; background: var(--green); color: #fff; border: 0; border-radius: var(--bp-radius-sm); padding: 12px 18px; transition: background var(--bp-ease), box-shadow var(--bp-ease);
+  font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; min-height: 44px; box-sizing: border-box;
+}
+.mj-btn:hover:not(:disabled) { background: var(--bp-green-dark); box-shadow: var(--bp-shadow); }
+.mj-btn:disabled { opacity: 0.6; cursor: default; }
+.mj-link { background: none; border: 0; padding: 6px 0; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; color: var(--ink); }
+.mj-btn:focus-visible, .mj-link:focus-visible, .mj-chip:focus-visible, .mj-x:focus-visible, .mj-form input:focus-visible, .mj-form select:focus-visible, .mj-send input:focus-visible {
+  outline: 3px solid var(--sign); outline-offset: 2px;
+}
+
+.mj-chat ul { list-style: none; padding: 0; margin: 16px 0; display: grid; gap: 8px; }
+.mj-chat li { padding: 10px 14px; max-width: 90%; line-height: 1.4; border-radius: 12px; }
+.mj-chat li.is-me { background: var(--ink); color: #fff; justify-self: end; }
+.mj-chat li.is-bot { background: #fff; border: 1px solid var(--rule); }
+.mj-chip { background: #fff; border: 2px solid var(--green); color: var(--green); font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 999px; cursor: pointer; transition: background var(--bp-ease); }
+.mj-chip:hover { background: var(--bp-green-tint); }
+.mj-send { display: flex; gap: 8px; }
+.mj-send input { flex: 1; }

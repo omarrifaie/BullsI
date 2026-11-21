@@ -1,0 +1,51 @@
+/* MockWorkday: a generic employer careers portal, deliberately not BullPen-styled. Scoped to .mw-root. */
+.mw-root {
+  min-height: 100vh;
+  background: #f4f5f7;
+  color: #1d1d1d;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 15px;
+  line-height: 1.4;
+}
+.mw-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #0b4f8a;
+  color: #fff;
+  padding: 16px 24px;
+  height: 72px; /* the HTML mock's 40px + padding, content-box */
+  font-size: 18px;
+}
+.mw-header span { font-size: 14px; opacity: 0.8; border-left: 1px solid rgba(255, 255, 255, 0.5); padding-left: 12px; }
+.mw-main { max-width: 760px; margin: 24px auto 120px; background: #fff; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+.mw-root h2 { margin: 0 0 12px; font-size: 22px; }
+.mw-root h3 { font-size: 16px; }
+.mw-root .step { display: none; }
+.mw-root .step.active { display: block; }
+.mw-root ol.progress { display: flex; gap: 12px; list-style: none; padding: 0; margin: 0 0 16px; font-size: 13px; color: #777; }
+.mw-root ol.progress li[data-automation-id="progressBarActiveStep"] { color: #0b4f8a; font-weight: bold; }
+.mw-root .formField { margin: 12px 0; position: relative; }
+.mw-root .formField label { display: block; font-size: 14px; margin-bottom: 4px; }
+.mw-root .req { color: #c00; }
+.mw-root input[type=text], .mw-root input[type=email], .mw-root input[type=password], .mw-root textarea {
+  width: 100%; padding: 8px; box-sizing: border-box; font: inherit; border: 1px solid #999; border-radius: 3px;
+}
+.mw-root .date input { width: 70px; margin-right: 6px; }
+.mw-root button { font: inherit; padding: 8px 16px; border: 1px solid #0b4f8a; background: #0b4f8a; color: #fff; border-radius: 3px; cursor: pointer; }
+.mw-root button.dropdown { min-width: 240px; text-align: left; background: #fff; color: #1d1d1d; border-color: #999; }
+.mw-root ul[role=listbox] {
+  display: none; position: absolute; z-index: 5; background: #fff; border: 1px solid #999;
+  list-style: none; margin: 0; padding: 0; min-width: 240px; max-height: 200px; overflow: auto;
+}
+.mw-root ul[role=listbox].open { display: block; }
+.mw-root li[role=option] { padding: 6px 8px; cursor: pointer; }
+.mw-root li[role=option]:hover { background: #e8f0fa; }
+.mw-root fieldset { border: 1px solid #ddd; margin: 12px 0; padding: 12px; }
+.mw-root .modal { border: 1px solid #ccc; padding: 16px; margin-top: 16px; display: none; }
+.mw-root .modal.open { display: block; }
+.mw-root .modal button { margin-right: 8px; }
+.mw-root a { color: #0b4f8a; margin-left: 12px; }
+.mw-submitted { padding: 12px; background: #e6f4ea; border: 1px solid #8bc79b; border-radius: 4px; font-weight: bold; }
+.mw-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #ccc; padding: 12px 24px; text-align: right; }
+.mw-footer.hidden { display: none; }

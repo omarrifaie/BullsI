@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock Workday Application</title>
+<!--
+  Plain-HTML Workday-style application used by apply_worker tests and as the spec for the React
+  /mock-workday/:jobId page. Every data-automation-id here matches apply_worker/workday_fields.json
+  (see apply_worker/MOCK_FIELDS.md). Query params: ?signin=1 shows a sign-in page after Apply Manually;
+  ?title=...&company=... set the posting header.
+  Test hooks: window.__clicks (text of every button clicked), window.__submitClicks and
+  <body data-submit-clicks> (clicks on Submit).
+-->
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; background: #f4f5f7; color: #1d1d1d; }
+  header { background: #0b4f8a; color: #fff; padding: 16px 24px; height: 40px; }
+  main { max-width: 760px; margin: 24px auto 120px; background: #fff; padding: 24px; border-radius: 8px; }
+  .page { display: none; }
+  .page.active { display: block; }
+  ol.progress { display: flex; gap: 12px; list-style: none; padding: 0; font-size: 13px; color: #777; }
+  ol.progress li[data-automation-id="progressBarActiveStep"] { color: #0b4f8a; font-weight: bold; }
+  .formField { margin: 12px 0; position: relative; }
+  .formField label { display: block; font-size: 14px; margin-bottom: 4px; }
+  .req { color: #c00; }
+  input[type=text], input[type=email], input[type=password], textarea { width: 100%; padding: 8px; box-sizing: border-box; }
+  .date input { width: 70px; }
+  button.dropdown { min-width: 240px; padding: 8px; text-align: left; background: #fff; border: 1px solid #999; }
+  ul[role=listbox] { display: none; position: absolute; z-index: 5; background: #fff; border: 1px solid #999;
+    list-style: none; margin: 0; padding: 0; min-width: 240px; max-height: 200px; overflow: auto; }
+  ul[role=listbox].open { display: block; }
+  li[role=option] { padding: 6px 8px; cursor: pointer; }
+  li[role=option]:hover { background: #e8f0fa; }
+  fieldset { border: 1px solid #ddd; margin: 12px 0; padding: 12px; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #ccc;
+    padding: 12px 24px; text-align: right; }
+  footer.hidden { display: none; }
+  .modal { border: 1px solid #ccc; padding: 16px; margin-top: 16px; display: none; }
+  .modal.open { display: block; }
+</style>
+</head>
+<body data-submit-clicks="0">
+<header><strong>Mock Workday</strong></header>
+<main>
+  <ol class="progress" id="progress">
+    <li data-step="my_information">My Information</li>
+    <li data-step="my_experience">My Experience</li>
+    <li data-step="review">Review</li>
+  </ol>
+
+  <!-- Posting -->
+  <section class="page active" id="page-posting">
+    <h2 data-automation-id="jobPostingHeader" id="job-title">Software Engineering Intern</h2>
+    <p id="job-company">BullPen Test Co</p>
+    <button data-automation-id="adventureButton" type="button">Apply</button>
+    <div class="modal" id="apply-modal">
+      <p>Start Your Application</p>
+      <button data-automation-id="autofillWithResume" type="button">Autofill with Resume</button>
+      <button data-automation-id="applyManually" type="button">Apply Manually</button>
+    </div>
+  </section>
+
+  <!-- Sign in (only with ?signin=1) -->
+  <section class="page" id="page-signin">
+    <div data-automation-id="signInContent">
+      <h2>Sign In</h2>
+      <div class="formField"><label for="si-email">Email Address</label>
+        <input type="email" id="si-email" data-automation-id="signInEmail"></div>
+      <div class="formField"><label for="si-password">Password</label>
+        <input type="password" id="si-password" data-automation-id="password"></div>
+      <button data-automation-id="signInSubmitButton" type="button">Sign In</button>
+      <a href="#" data-automation-id="createAccountLink">Create Account</a>
+    </div>
+  </section>
+
+  <!-- Page 1: My Information -->
+  <section class="page" id="page-my_information">
+    <h2>My Information</h2>
+    <div class="formField">
+      <label for="f-source">How Did You Hear About Us? <span class="req">*</span></label>
+      <button class="dropdown" type="button" id="f-source" data-automation-id="sourcePrompt" aria-required="true" aria-haspopup="listbox">Select One</button>
+      <ul role="listbox"><li role="option">Job Board</li><li role="option">LinkedIn</li><li role="option">Career Fair</li><li role="option">Referral</li><li role="option">Company Website</li></ul>
+    </div>
+    <div class="formField">
+      <label for="f-country">Country <span class="req">*</span></label>
+      <button class="dropdown" type="button" id="f-country" data-automation-id="countryDropdown" aria-required="true" aria-haspopup="listbox">Select One</button>
+      <ul role="listbox"><li role="option">United States of America</li><li role="option">Canada</li><li role="option">Mexico</li></ul>
+    </div>
+    <div class="formField"><label for="f-first">First Name <span class="req">*</span></label>
+      <input type="text" id="f-first" data-automation-id="legalNameSection_firstName" aria-required="true"></div>
+    <div class="formField"><label for="f-last">Last Name <span class="req">*</span></label>
+      <input type="text" id="f-last" data-automation-id="legalNameSection_lastName" aria-required="true"></div>
+    <div class="formField"><label for="f-addr">Address Line 1 <span class="req">*</span></label>
+      <input type="text" id="f-addr" data-automation-id="addressSection_addressLine1" aria-required="true"></div>
+    <div class="formField"><label for="f-city">City <span class="req">*</span></label>
+      <input type="text" id="f-city" data-automation-id="addressSection_city" aria-required="true"></div>
+    <div class="formField">
+      <label for="f-state">State <span class="req">*</span></label>
+      <button class="dropdown" type="button" id="f-state" data-automation-id="addressSection_countryRegion" aria-required="true" aria-haspopup="listbox">Select One</button>
+      <ul role="listbox"><li role="option">Alabama</li><li role="option">California</li><li role="option">Florida</li><li role="option">Georgia</li><li role="option">New York</li><li role="option">Texas</li></ul>
+    </div>
+    <div class="formField"><label for="f-zip">Postal Code <span class="req">*</span></label>
+      <input type="text" id="f-zip" data-automation-id="addressSection_postalCode" aria-required="true"></div>
+    <div class="formField"><label for="f-email">Email Address <span class="req">*</span></label>
+      <input type="text" id="f-email" data-automation-id="email" aria-required="true"></div>
+    <div class="formField">
+      <label for="f-phonetype">Phone Device Type <span class="req">*</span></label>
+      <button class="dropdown" type="button" id="f-phonetype" data-automation-id="phone-device-type" aria-required="true" aria-haspopup="listbox">Select One</button>
+      <ul role="listbox"><li role="option">Mobile</li><li role="option">Home</li><li role="option">Work</li></ul>
+    </div>
+    <div class="formField"><label for="f-phone">Phone Number <span class="req">*</span></label>
+      <input type="text" id="f-phone" data-automation-id="phone-number" aria-required="true"></div>
+    <div class="formField">
+      <label for="f-auth">Are you legally authorized to work in the United States? <span class="req">*</span></label>
+      <button class="dropdown" type="button" id="f-auth" data-automation-id="workAuthorizationQuestion" aria-required="true" aria-haspopup="listbox">Select One</button>
+      <ul role="listbox"><li role="option">Yes</li><li role="option">No</li></ul>
+    </div>
+    <div class="formField">
+      <label for="f-spons">Will you now or in the future require sponsorship? <span class="req">*</span></label>
+      <button class="dropdown" type="button" id="f-spons" data-automation-id="sponsorshipQuestion" aria-required="true" aria-haspopup="listbox">Select One</button>
+      <ul role="listbox"><li role="option">Yes</li><li role="option">No</li></ul>
+    </div>
+  </section>
+
+  <!-- Page 2: My Experience -->
+  <section class="page" id="page-my_experience">
+    <h2>My Experience</h2>
+    <div data-automation-id="workExperienceSection">
+      <h3>Work Experience</h3>
+      <div class="entries"></div>
+      <button data-automation-id="add-button" type="button" data-add="work">Add</button>
+    </div>
+    <div data-automation-id="educationSection">
+      <h3>Education</h3>
+      <div class="entries"></div>
+      <button data-automation-id="add-button" type="button" data-add="education">Add</button>
+    </div>
+    <div class="formField">
+      <label for="f-files">Resume/CV and Cover Letter <span class="req">*</span></label>
+      <input type="file" id="f-files" multiple accept=".pdf" data-automation-id="file-upload-input-ref" aria-required="true">
+    </div>
+    <fieldset data-automation-id="voluntaryDisclosuresSection">
+      <legend>Voluntary Disclosures</legend>
+      <div class="formField">
+        <label for="v-gender">Gender</label>
+        <button class="dropdown" type="button" id="v-gender" data-automation-id="gender" aria-haspopup="listbox">Select One</button>
+        <ul role="listbox"><li role="option">Female</li><li role="option">Male</li><li role="option">I do not wish to answer</li></ul>
+      </div>
+      <div class="formField">
+        <label for="v-eth">Race/Ethnicity</label>
+        <button class="dropdown" type="button" id="v-eth" data-automation-id="ethnicityDropdown" aria-haspopup="listbox">Select One</button>
+        <ul role="listbox"><li role="option">Asian</li><li role="option">Black or African American</li><li role="option">White</li><li role="option">Two or More Races</li><li role="option">I do not wish to answer</li></ul>
+      </div>
+      <div class="formField">
+        <label for="v-hisp">Are you Hispanic or Latino?</label>
+        <button class="dropdown" type="button" id="v-hisp" data-automation-id="hispanicOrLatino" aria-haspopup="listbox">Select One</button>
+        <ul role="listbox"><li role="option">Yes</li><li role="option">No</li><li role="option">I do not wish to answer</li></ul>
+      </div>
+      <div class="formField">
+        <label for="v-vet">Veteran Status</label>
+        <button class="dropdown" type="button" id="v-vet" data-automation-id="veteranStatus" aria-haspopup="listbox">Select One</button>
+        <ul role="listbox"><li role="option">I am not a protected veteran</li><li role="option">I identify as a protected veteran</li><li role="option">I do not wish to answer</li></ul>
+      </div>
+      <div class="formField">
+        <label><input type="checkbox" data-automation-id="disabilityStatus"> I have a disability (or previously had a disability)</label>
+      </div>
+    </fieldset>
+  </section>
+
+  <!-- Page 3: Review -->
+  <section class="page" id="page-review">
+    <h2>Review</h2>
+    <p>Review your application, then click Submit.</p>
+    <p id="submitted" hidden>Application submitted.</p>
+  </section>
+</main>
+
+<footer class="hidden" id="footer">
+  <button data-automation-id="bottom-navigation-next-button" type="button" id="next">Save and Continue</button>
+</footer>
+
+<template id="tpl-work">
+  <fieldset>
+    <legend>Work Experience <span class="n"></span></legend>
+    <div class="formField"><label>Job Title <span class="req">*</span></label>
+      <input type="text" data-automation-id="jobTitle" aria-required="true"></div>
+    <div class="formField"><label>Company <span class="req">*</span></label>
+      <input type="text" data-automation-id="company" aria-required="true"></div>
+    <div class="formField"><label>Location</label>
+      <input type="text" data-automation-id="location"></div>
+    <div class="formField"><label><input type="checkbox" data-automation-id="currentlyWorkHere"> I currently work here</label></div>
+    <div class="formField date" data-automation-id="formField-startDate"><label>From <span class="req">*</span></label>
+      <input type="text" placeholder="MM" data-automation-id="dateSectionMonth-input" aria-required="true">
+      <input type="text" placeholder="YYYY" data-automation-id="dateSectionYear-input" aria-required="true"></div>
+    <div class="formField date" data-automation-id="formField-endDate"><label>To</label>
+      <input type="text" placeholder="MM" data-automation-id="dateSectionMonth-input">
+      <input type="text" placeholder="YYYY" data-automation-id="dateSectionYear-input"></div>
+    <div class="formField"><label>Role Description</label>
+      <textarea rows="3" data-automation-id="description"></textarea></div>
+  </fieldset>
+</template>
+
+<template id="tpl-education">
+  <fieldset>
+    <legend>Education <span class="n"></span></legend>
+    <div class="formField"><label>School or University <span class="req">*</span></label>
+      <input type="text" data-automation-id="school" aria-required="true"></div>
+    <div class="formField"><label>Degree <span class="req">*</span></label>
+      <button class="dropdown" type="button" data-automation-id="degree" aria-required="true" aria-haspopup="listbox">Select One</button>
+      <ul role="listbox"><li role="option">High School Diploma</li><li role="option">Associate's Degree</li><li role="option">Bachelor's Degree</li><li role="option">Master's Degree</li><li role="option">Doctorate</li></ul>
+    </div>
+    <div class="formField"><label>Field of Study</label>
+      <input type="text" data-automation-id="fieldOfStudy"></div>
+    <div class="formField"><label>Overall Result (GPA)</label>
+      <input type="text" data-automation-id="gpa"></div>
+    <div class="formField date" data-automation-id="formField-lastYearAttended"><label>To (Actual or Expected)</label>
+      <input type="text" placeholder="MM" data-automation-id="dateSectionMonth-input">
+      <input type="text" placeholder="YYYY" data-automation-id="dateSectionYear-input"></div>
+  </fieldset>
+</template>
+
+<script>
+  window.__clicks = [];
+  window.__submitClicks = 0;
+  const params = new URLSearchParams(location.search);
+  if (params.get("title")) document.getElementById("job-title").textContent = params.get("title");
+  if (params.get("company")) document.getElementById("job-company").textContent = params.get("company");
+  const steps = ["my_information", "my_experience", "review"];
+  let current = "posting";
+
+  function show(name) {
+    current = name;
+    document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === "page-" + name));
+    document.querySelectorAll("#progress li").forEach(li => {
+      li.setAttribute("data-automation-id", li.dataset.step === name ? "progressBarActiveStep" : "progressBarInactiveStep");
+    });
+    document.getElementById("footer").classList.toggle("hidden", !steps.includes(name));
+    document.getElementById("next").textContent = name === "review" ? "Submit" : "Save and Continue";
+  }
+
+  document.addEventListener("click", e => {
+    const btn = e.target.closest("button");
+    if (btn) window.__clicks.push(btn.textContent.trim());
+    // Workday-style dropdowns: click the button, then pick an option by text.
+    const opener = e.target.closest("button.dropdown");
+    document.querySelectorAll("ul[role=listbox].open").forEach(ul => { if (ul.previousElementSibling !== opener) ul.classList.remove("open"); });
+    if (opener) { opener.nextElementSibling.classList.toggle("open"); return; }
+    const option = e.target.closest("li[role=option]");
+    if (option) {
+      const ul = option.parentElement, button = ul.previousElementSibling;
+      button.textContent = option.textContent;
+      button.dataset.value = option.textContent;
+      ul.classList.remove("open");
+    }
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") document.querySelectorAll("ul[role=listbox].open").forEach(ul => ul.classList.remove("open"));
+  });
+
+  document.querySelector('[data-automation-id="adventureButton"]').addEventListener("click", () => {
+    document.getElementById("apply-modal").classList.add("open");
+  });
+  const start = () => show(params.get("signin") === "1" ? "signin" : "my_information");
+  document.querySelector('[data-automation-id="applyManually"]').addEventListener("click", start);
+  document.querySelector('[data-automation-id="autofillWithResume"]').addEventListener("click", start);
+  document.querySelector('[data-automation-id="signInSubmitButton"]').addEventListener("click", () => show("my_information"));
+
+  document.querySelectorAll("[data-add]").forEach(btn => btn.addEventListener("click", () => {
+    const kind = btn.dataset.add;
+    const entries = btn.parentElement.querySelector(".entries");
+    const n = entries.children.length + 1;
+    const wrap = document.createElement("div");
+    wrap.setAttribute("data-automation-id", (kind === "work" ? "workExperience-" : "education-") + n);
+    wrap.appendChild(document.getElementById("tpl-" + kind).content.cloneNode(true));
+    wrap.querySelector(".n").textContent = n;
+    entries.appendChild(wrap);
+  }));
+
+  document.getElementById("next").addEventListener("click", () => {
+    if (current === "review") {
+      window.__submitClicks += 1;
+      document.body.dataset.submitClicks = String(window.__submitClicks);
+      document.getElementById("submitted").hidden = false;
+      return;
+    }
+    show(steps[steps.indexOf(current) + 1]);
+  });
+</script>
+</body>
+</html>

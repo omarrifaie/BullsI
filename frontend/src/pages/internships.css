@@ -1,0 +1,86 @@
+/* Internships swipe deck. Uses the shell's --bp-* tokens. */
+.in-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.in-head h1 { margin: 0; }
+.in-counter {
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--bp-green-tint);
+  color: var(--bp-green);
+  text-decoration: none;
+}
+.page .in-counter { color: var(--bp-green); }
+
+.in-count { margin: 8px 0; }
+.in-stage { position: relative; min-height: 340px; max-width: 560px; }
+.in-card {
+  position: relative;
+  background: #fff;
+  border-top: 4px solid var(--bp-green);
+  border-radius: var(--bp-radius);
+  padding: 24px 28px;
+  min-height: 320px;
+  box-shadow: var(--bp-shadow-lift);
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.in-card.dragging { transition: none; cursor: grabbing; }
+.in-card.leaving { opacity: 0; }
+.in-card h2 { margin: 0 96px 4px 0; font-size: 1.5rem; line-height: 1.25; }
+.in-company { margin: 0; font-weight: 700; }
+.in-loc { margin: 0 0 12px; color: var(--bp-muted); }
+.in-reason { margin: 0 0 16px; padding: 10px 14px; background: var(--bp-green-tint); border-radius: 8px; }
+
+.in-score {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  color: var(--bp-green);
+}
+.in-score strong { font-size: 3rem; font-weight: 800; }
+.in-score span { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.in-stamp {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-12deg);
+  font-size: 2.5rem;
+  font-weight: 800;
+  padding: 4px 16px;
+  border: 4px solid;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+.in-stamp.right { color: var(--bp-green); }
+.in-stamp.left { color: var(--bp-bad); }
+
+.in-actions { display: flex; gap: 16px; margin-top: 20px; max-width: 560px; }
+.in-btn {
+  flex: 1;
+  font: inherit;
+  font-weight: 700;
+  min-height: 52px;
+  padding: 10px 22px;
+  border-radius: var(--bp-radius-sm);
+  border: 2px solid;
+  cursor: pointer;
+  transition: background var(--bp-ease), box-shadow var(--bp-ease), transform var(--bp-ease);
+  text-align: center;
+  text-decoration: none;
+}
+.in-btn:disabled { opacity: 0.6; }
+.in-btn:focus-visible { outline: 3px solid var(--bp-green); outline-offset: 2px; }
+.in-skip { background: #fff; color: var(--bp-bad); border-color: var(--bp-bad); }
+.in-save { background: var(--bp-green); color: #fff; border-color: var(--bp-green); }
+.page a.in-save { color: #fff; display: inline-block; flex: none; }
+
+.in-empty { background: #fff; box-shadow: var(--bp-shadow); border-radius: var(--bp-radius); padding: 24px 28px; max-width: 560px; }
+.in-error { color: var(--bp-bad); font-weight: 600; }

@@ -1,0 +1,35 @@
+\#{ Cover letter matching the resume header. Every VAR output is LaTeX-escaped by render.py. }
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[hidelinks]{hyperref}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{10pt}
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{center}
+  {\Huge \scshape \VAR{name}} \\ \vspace{4pt}
+  \small \VAR{contact_line}
+\end{center}
+
+\vspace{8pt}
+\VAR{date}
+
+Hiring Team \\
+\VAR{company}\BLOCK{if location} \\
+\VAR{location}\BLOCK{endif}\par
+
+Re: \VAR{job_title}
+
+Dear Hiring Team,
+
+\BLOCK{for paragraph in paragraphs}
+\VAR{paragraph}
+
+\BLOCK{endfor}
+Sincerely, \\
+\VAR{name}
+
+\end{document}
