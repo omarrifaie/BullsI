@@ -101,4 +101,7 @@ class Profile(BaseModel):
   skills: list[str]
   class_schedule: list[TimeBlock]
   transportation: str = ""  # "car" | "bike" | "transit" | "walk"
+  country: str = ""  # signup answer; "United States of America" derived when the address has a US state
+  phone_device_type: str = ""  # signup answer, e.g. "Mobile" (apply worker fills Workday's dropdown only if set)
+  how_heard: str = ""  # signup answer for "How did you hear about us?"
   preferences: Preferences

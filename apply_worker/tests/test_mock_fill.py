@@ -25,6 +25,8 @@ def test_fills_every_mapped_field_and_uploads_both_pdfs(run_mock: Any, profile: 
   assert f["addressSection_countryRegion"] == "Florida" and f["addressSection_postalCode"] == "33620"
   assert f["email"] == "alexrivera@usf.edu" and f["phone-number"] == "8135550142"
   assert f["workAuthorizationQuestion"] == "Yes" and f["sponsorshipQuestion"] == "No"  # citizen
+  assert f["countryDropdown"] == "United States of America" and f["phone-device-type"] == "Mobile"
+  assert f["sourcePrompt"] == "Select One"  # how_heard not set in the profile
   assert out["state"]["work"] == {
     "jobTitle": "IT Help Desk Assistant", "company": "USF Information Technology", "location": "Tampa, FL",
     "currentlyWorkHere": True, "formField-startDate": "08/2025", "formField-endDate": "/",
@@ -35,16 +37,25 @@ def test_fills_every_mapped_field_and_uploads_both_pdfs(run_mock: Any, profile: 
     "school": "University of South Florida", "degree": "Bachelor's Degree", "fieldOfStudy": "Computer Science",
     "gpa": "3.7", "formField-lastYearAttended": "05/2028"}
   assert out["state"]["files"] == ["resume.pdf", "cover_letter.pdf"]
-  assert out["status"]["status"] == "ready_for_review" and out["status"]["filled_count"] == out["result"]["filled"] == 22  # 10 + 6 work + 5 education + 1 upload
+  assert out["status"]["status"] == "ready_for_review" and out["status"]["filled_count"] == out["result"]["filled"] == 24  # 12 + 6 work + 5 education + 1 upload
 
 
 def test_profile_gaps_stay_blank(run_mock: Any, profile: dict[str, Any], files: dict[str, Optional[Path]]) -> None:
-  """No guessing: country, source, phone type aren't in the profile; F-1 students decide 'authorized' themselves."""
-  out: dict[str, Any] = run_mock({**profile, "work_authorization": "needs_sponsorship"}, files)
+  """No guessing: unset signup answers stay blank, an answer that isn't an option stays blank, and F-1 students
+  decide 'authorized to work' themselves."""
+  out: dict[str, Any] = run_mock({**profile, "work_authorization": "needs_sponsorship", "country": "",
+                                  "phone_device_type": "", "how_heard": "TikTok"}, files)
   f: dict[str, Any] = out["state"]["fields"]
   for field_id in ("countryDropdown", "sourcePrompt", "phone-device-type", "workAuthorizationQuestion"):
     assert f[field_id] == "Select One", field_id
   assert f["sponsorshipQuestion"] == "Yes"
+
+
+def test_how_heard_is_picked_when_set(run_mock: Any, profile: dict[str, Any],
+                                      files: dict[str, Optional[Path]]) -> None:
+  out: dict[str, Any] = run_mock({**profile, "how_heard": "career fair"}, files)  # matched case-insensitively
+  assert out["state"]["fields"]["sourcePrompt"] == "Career Fair"
+  assert out["status"]["needs_you"] == []
 
 
 def test_voluntary_disclosures_stay_empty(run_mock: Any, profile: dict[str, Any],
@@ -79,10 +90,10 @@ def test_blanks_are_highlighted_and_listed(run_mock: Any, profile: dict[str, Any
   state: dict[str, Any] = out["state"]
   assert "gpa" in state["highlighted"] and "Overall Result (GPA)" in state["blanks"]
   assert state["panelLinks"] == ["Overall Result (GPA)"]  # clickable: it's on the page the student is looking at
-  for text in ("Filled 21 fields", "My Information: How Did You Hear About Us?", "My Information: Country",
-               "My Information: Phone Device Type", "Software Engineering Intern at BullPen Test Co"):
+  for text in ("Filled 23 fields", "My Information: How Did You Hear About Us?",
+               "Software Engineering Intern at BullPen Test Co"):
     assert text in state["panelText"], text
-  assert "Overall Result (GPA)" in out["status"]["needs_you"] and "My Information: Country" in out["status"]["needs_you"]
+  assert out["status"]["needs_you"] == ["Overall Result (GPA)", "My Information: How Did You Hear About Us?"]
   panel: dict[str, float] = state["panelRect"]
   for b in state["pageButtons"]:  # the panel never covers the page's own buttons
     overlaps: bool = b["x"] < panel["x"] + panel["w"] and panel["x"] < b["x"] + b["w"] \

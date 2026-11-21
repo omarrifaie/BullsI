@@ -113,9 +113,9 @@ def profile_values(profile: dict[str, Any]) -> dict[str, Any]:
     "email": profile.get("email") or None,
     "phone": digits or None,
     "phone_display": profile.get("phone") or None,
-    "phone_type": None,  # the profile doesn't say mobile/home
-    "country": None,
-    "how_heard": None,
+    "phone_type": profile.get("phone_device_type") or None,  # signup answers only; blank when not set
+    "country": profile.get("country") or None,
+    "how_heard": profile.get("how_heard") or None,
     "authorized_to_work": "Yes" if auth in ("citizen", "permanent_resident") else None,  # F-1 etc: student decides
     "needs_sponsorship": {"citizen": "No", "permanent_resident": "No", "needs_sponsorship": "Yes"}.get(auth or ""),
     "experience": experience,

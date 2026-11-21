@@ -17,7 +17,7 @@ def _post_profile(client: TestClient) -> dict[str, Any]:
     "/profile",
     files={"resume": ("resume.pdf", PDF_BYTES, "application/pdf"),
            "schedule": ("schedule.png", PNG_BYTES, "image/png")},
-    data={"name": "Sam Bull", "work_authorization": "needs_sponsorship", "min_pay": "16"},
+    data={"name": "Sam Bull", "work_authorization": "needs_sponsorship", "min_pay": "16", "phone_device_type": "Mobile"},
   )
   assert res.status_code == 200, res.text
   return res.json()
@@ -29,6 +29,8 @@ def test_profile_form_overrides(client: TestClient) -> None:
   assert profile["name"] == "Sam Bull"
   assert profile["work_authorization"] == "needs_sponsorship"
   assert profile["preferences"]["min_pay"] == 16.0
+  assert profile["phone_device_type"] == "Mobile" and profile["how_heard"] == ""
+  assert profile["country"] == "United States of America"
   assert profile["id"] == 1
 
 

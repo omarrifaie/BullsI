@@ -113,6 +113,9 @@ async def create_profile(
   preferred_cities: Optional[str] = Form(None),  # semicolon separated: "Tampa, FL; Orlando, FL"
   min_pay: Optional[float] = Form(None),
   max_commute_minutes: Optional[int] = Form(None),
+  country: Optional[str] = Form(None),
+  phone_device_type: Optional[str] = Form(None),
+  how_heard: Optional[str] = Form(None),
 ) -> dict[str, Any]:
   resume_bytes: bytes = await resume.read(MAX_UPLOAD_BYTES + 1)
   schedule_bytes: bytes = await schedule.read(MAX_UPLOAD_BYTES + 1)
@@ -128,6 +131,7 @@ async def create_profile(
     "work_authorization": work_authorization, "transportation": transportation,
     "year_in_school": year_in_school, "preferred_cities": preferred_cities,
     "min_pay": min_pay, "max_commute_minutes": max_commute_minutes,
+    "country": country, "phone_device_type": phone_device_type, "how_heard": how_heard,
   }
   uploads: dict[str, Any] = {"resume": resume_bytes, "schedule": schedule_bytes, "schedule_mime": schedule_mime,
                              "form": form}

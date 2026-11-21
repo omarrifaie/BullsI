@@ -134,11 +134,26 @@ def build_profile(extracted: ExtractedProfile, today: Optional[date] = None) -> 
   return profile.model_dump(exclude={"id"})
 
 
+US_STATE_CODES: set[str] = {
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA",
+  "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR",
+  "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"}
+
+
+def us_country_from_address(address: str) -> str:
+  """"..., Tampa, FL 33620" or "Tampa, FL" -> "United States of America"; anything else -> "" (never guessed)."""
+  match: Optional[re.Match[str]] = re.search(r",\s*([A-Z]{2})(?:\s+\d{5}(?:-\d{4})?)?\s*$", address or "")
+  return "United States of America" if match and match[1] in US_STATE_CODES else ""
+
+
 def apply_signup(profile: dict[str, Any], form: dict[str, Any]) -> dict[str, Any]:
   """Signup form answers override anything Gemini extracted. None/"" means not answered."""
-  for key in ("name", "email", "phone", "address", "work_authorization", "transportation"):
+  for key in ("name", "email", "phone", "address", "work_authorization", "transportation",
+              "country", "phone_device_type", "how_heard"):
     if form.get(key):
       profile[key] = form[key]
+  if not profile.get("country"):
+    profile["country"] = us_country_from_address(profile.get("address", ""))  # derived from the state, not guessed
   if form.get("year_in_school"):
     if not profile["education"]:
       profile["education"] = [Education(school="University of South Florida").model_dump()]

@@ -44,7 +44,7 @@ cached / warnings, so every demo click is served from cache.
 | Route | Owner | Notes |
 |---|---|---|
 | `GET /health` | A | `{"ok": true, "profile_id", "tectonic", "gemini_key_loaded"}` (booleans only, never the key) |
-| `POST /profile` | A | multipart: files `resume` (PDF), `schedule` (image); optional form fields `name, email, phone, address, work_authorization, transportation, year_in_school, preferred_cities, min_pay, max_commute_minutes` (`preferred_cities` is semicolon separated, e.g. `Tampa, FL; Orlando, FL`). Form values override what's extracted. |
+| `POST /profile` | A | multipart: files `resume` (PDF), `schedule` (image); optional form fields `name, email, phone, address, work_authorization, transportation, year_in_school, preferred_cities, min_pay, max_commute_minutes, country, phone_device_type, how_heard` (`preferred_cities` is semicolon separated, e.g. `Tampa, FL; Orlando, FL`). Form values override what's extracted. `country` defaults to `United States of America` when the address ends in a US state; `phone_device_type` (e.g. `Mobile`) and `how_heard` stay empty unless the student sets them. The apply worker fills Workday's Country, Phone Device Type and How Did You Hear dropdowns only from these. |
 | `GET /jobs?mode=internship\|parttime[&refresh=true]` | A | ranked job objects (shared contract), cached per profile; part-time jobs carry B's commute from the student's address (null if unavailable) |
 | `GET /jobs/{id}/commute` | B | commute object for a part-time job (404 otherwise); cached in SQLite `commute_cache` |
 | `POST /queue/{id}` | C (stub) | `{"status": "queued", "job_id"}`; also starts a background job-description fetch for internships |

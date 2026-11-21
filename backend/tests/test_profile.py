@@ -32,6 +32,23 @@ def test_signup_overrides_gemini() -> None:
   assert out["education"][0]["year_in_school"] == "junior"
   assert out["preferences"]["preferred_cities"] == ["Tampa, FL", "Orlando, FL"]
   assert out["preferences"]["min_pay"] == 16.0
+  assert out["country"] == "United States of America"  # derived from "..., Tampa, FL 33620"
+  assert out["phone_device_type"] == "" and out["how_heard"] == ""  # never guessed
+
+
+def test_signup_apply_answers() -> None:
+  profile: dict[str, Any] = profile_agent.build_profile(fake_extracted())
+  out: dict[str, Any] = profile_agent.apply_signup(profile, {
+    "country": "Canada", "phone_device_type": "Mobile", "how_heard": "Career Fair"})
+  assert (out["country"], out["phone_device_type"], out["how_heard"]) == ("Canada", "Mobile", "Career Fair")
+
+
+@pytest.mark.parametrize("address,expected", [
+  ("4202 E Fowler Ave, Tampa, FL 33620", "United States of America"), ("Tampa, FL", "United States of America"),
+  ("1 Main St, Austin, TX 78701-1234", "United States of America"), ("Toronto, ON M5V 2T6", ""),
+  ("Toronto, ON", ""), ("Tampa", ""), ("", "")])
+def test_country_only_from_a_us_state(address: str, expected: str) -> None:
+  assert profile_agent.us_country_from_address(address) == expected
 
 
 @pytest.mark.parametrize("graduation,expected", [("Dec 2027", "junior"), ("May 2027", "senior"),
