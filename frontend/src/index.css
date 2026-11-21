@@ -1,0 +1,65 @@
+/* App shell only. B's pages scope their own variables under .pt-page / .mj-page, so nothing here targets them. */
+:root {
+  --bp-green: #006747;
+  --bp-green-tint: #e3f0ea;
+  --bp-ink: #12251c;
+  --bp-muted: #55665d;
+  --bp-ground: #edf1ee;
+  --bp-rule: #cbd5cf;
+  --bp-warn-bg: #fff4d6;
+  --bp-warn-ink: #5c4300;
+  --bp-bad: #a4262c;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bp-ground);
+  color: var(--bp-ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  flex-wrap: wrap;
+  padding: 12px clamp(16px, 4vw, 48px);
+  background: #fff;
+  border-bottom: 3px solid var(--bp-green);
+}
+.nav nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.nav-brand {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--bp-green);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+.nav-link {
+  padding: 8px 14px;
+  border-radius: 6px;
+  color: var(--bp-ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+.nav-link:hover { background: var(--bp-green-tint); }
+.nav-link.active { background: var(--bp-green); color: #fff; }
+.nav-brand:focus-visible, .nav-link:focus-visible { outline: 3px solid var(--bp-green); outline-offset: 2px; }
+
+.banner {
+  padding: 12px clamp(16px, 4vw, 48px);
+  background: var(--bp-warn-bg);
+  color: var(--bp-warn-ink);
+  border-bottom: 1px solid #e8cf7a;
+  font-weight: 600;
+}
+
+.page { max-width: 860px; padding: 32px clamp(16px, 4vw, 48px) 64px; }
+.page h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; }
+.page a { color: var(--bp-green); }
+.status { color: var(--bp-muted); }
+.status-bad { color: var(--bp-bad); font-weight: 600; }
