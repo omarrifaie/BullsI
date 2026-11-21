@@ -13,7 +13,9 @@ export async function getJson(path, init) {
   const res = await fetch(`${API}${path}`, init);
   const body = await res.json().catch(() => null);
   if (!res.ok) {
-    const err = new Error(body?.detail || `Request failed (${res.status}).`);
+    // FastAPI validation errors (422) send `detail` as a list of objects, not a string.
+    const detail = typeof body?.detail === "string" ? body.detail : body?.detail && JSON.stringify(body.detail);
+    const err = new Error(detail || `Request failed (${res.status}).`);
     err.status = res.status;
     throw err;
   }
