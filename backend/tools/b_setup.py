@@ -9,7 +9,10 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")  # repo-root .env, same as main.py
 import db  # noqa: E402
 from agents import commute as cm  # noqa: E402
 
