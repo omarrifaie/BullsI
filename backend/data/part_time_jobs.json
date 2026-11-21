@@ -1,0 +1,218 @@
+[
+  {
+    "id": "job_001",
+    "mode": "parttime",
+    "title": "Front Desk Assistant",
+    "company": "USF Campus Recreation Center",
+    "address": "USF Campus Recreation Center, Tampa, FL",
+    "lat": null,
+    "lng": null,
+    "apply_url": "http://localhost:5173/mock-workday/job_001",
+    "shifts": [
+      {
+        "day": "Tue",
+        "start": "15:00",
+        "end": "21:00"
+      },
+      {
+        "day": "Thu",
+        "start": "15:00",
+        "end": "21:00"
+      }
+    ],
+    "pay": 12.5,
+    "skills": [
+      "customer service",
+      "front desk"
+    ]
+  },
+  {
+    "id": "job_002",
+    "mode": "parttime",
+    "title": "Library Student Assistant",
+    "company": "USF Tampa Library",
+    "address": "USF Tampa Library, Tampa, FL",
+    "lat": null,
+    "lng": null,
+    "apply_url": "http://localhost:5173/mock-workday/job_002",
+    "shifts": [
+      {
+        "day": "Mon",
+        "start": "16:00",
+        "end": "20:00"
+      },
+      {
+        "day": "Wed",
+        "start": "16:00",
+        "end": "20:00"
+      }
+    ],
+    "pay": 12.0,
+    "skills": [
+      "organization",
+      "customer service"
+    ]
+  },
+  {
+    "id": "job_003",
+    "mode": "parttime",
+    "title": "Dining Cashier",
+    "company": "USF Marshall Student Center",
+    "address": "Marshall Student Center, University of South Florida, Tampa, FL",
+    "lat": null,
+    "lng": null,
+    "apply_url": "http://localhost:5173/mock-workday/job_003",
+    "shifts": [
+      {
+        "day": "Tue",
+        "start": "11:00",
+        "end": "15:00"
+      },
+      {
+        "day": "Thu",
+        "start": "11:00",
+        "end": "15:00"
+      }
+    ],
+    "pay": 12.25,
+    "skills": [
+      "cash handling",
+      "customer service"
+    ]
+  },
+  {
+    "id": "job_004",
+    "mode": "parttime",
+    "title": "Event Staff",
+    "company": "Yuengling Center",
+    "address": "Yuengling Center, Tampa, FL",
+    "lat": null,
+    "lng": null,
+    "apply_url": "http://localhost:5173/mock-workday/job_004",
+    "shifts": [
+      {
+        "day": "Fri",
+        "start": "17:00",
+        "end": "22:00"
+      },
+      {
+        "day": "Sat",
+        "start": "16:00",
+        "end": "22:00"
+      }
+    ],
+    "pay": 14.0,
+    "skills": [
+      "event support",
+      "teamwork"
+    ]
+  },
+  {
+    "id": "job_005",
+    "mode": "parttime",
+    "title": "Retail Associate",
+    "company": "University Mall",
+    "address": "University Mall, 2200 E Fowler Ave, Tampa, FL 33612",
+    "lat": null,
+    "lng": null,
+    "apply_url": "http://localhost:5173/mock-workday/job_005",
+    "shifts": [
+      {
+        "day": "Sat",
+        "start": "10:00",
+        "end": "18:00"
+      },
+      {
+        "day": "Sun",
+        "start": "11:00",
+        "end": "17:00"
+      }
+    ],
+    "pay": 13.5,
+    "skills": [
+      "sales",
+      "customer service"
+    ]
+  },
+  {
+    "id": "job_006",
+    "mode": "parttime",
+    "title": "Guest Experience Host",
+    "company": "Museum of Science and Industry",
+    "address": "MOSI, 4801 E Fowler Ave, Tampa, FL 33617",
+    "lat": null,
+    "lng": null,
+    "apply_url": "http://localhost:5173/mock-workday/job_006",
+    "shifts": [
+      {
+        "day": "Sat",
+        "start": "09:00",
+        "end": "17:00"
+      },
+      {
+        "day": "Sun",
+        "start": "09:00",
+        "end": "17:00"
+      }
+    ],
+    "pay": 14.5,
+    "skills": [
+      "customer service",
+      "public speaking"
+    ]
+  },
+  {
+    "id": "job_007",
+    "mode": "parttime",
+    "title": "Patient Transport Aide",
+    "company": "Moffitt Cancer Center",
+    "address": "Moffitt Cancer Center, 12902 USF Magnolia Dr, Tampa, FL 33612",
+    "lat": null,
+    "lng": null,
+    "apply_url": "http://localhost:5173/mock-workday/job_007",
+    "shifts": [
+      {
+        "day": "Mon",
+        "start": "12:00",
+        "end": "18:00"
+      },
+      {
+        "day": "Wed",
+        "start": "12:00",
+        "end": "18:00"
+      }
+    ],
+    "pay": 16.0,
+    "skills": [
+      "teamwork",
+      "communication"
+    ]
+  },
+  {
+    "id": "job_008",
+    "mode": "parttime",
+    "title": "Park Team Member",
+    "company": "Busch Gardens Tampa Bay",
+    "address": "Busch Gardens Tampa Bay, 10165 N McKinley Dr, Tampa, FL 33612",
+    "lat": null,
+    "lng": null,
+    "apply_url": "http://localhost:5173/mock-workday/job_008",
+    "shifts": [
+      {
+        "day": "Sat",
+        "start": "10:00",
+        "end": "18:00"
+      },
+      {
+        "day": "Sun",
+        "start": "10:00",
+        "end": "18:00"
+      }
+    ],
+    "pay": 15.0,
+    "skills": [
+      "customer service",
+      "teamwork"
+    ]
+  }
+]
