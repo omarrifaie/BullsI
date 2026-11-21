@@ -161,6 +161,13 @@ def queue_job(job_id: str) -> dict[str, Any]:
   return {"status": "queued", "job_id": job_id}
 
 
+@app.delete("/queue/{job_id}")
+def unqueue_job(job_id: str) -> dict[str, Any]:
+  """Take a job off the current profile's queue. No-op if it isn't queued; tailored PDFs stay cached."""
+  db.remove_from_queue(_current_profile_id(), job_id)
+  return {"status": "removed", "job_id": job_id}
+
+
 @app.post("/prepare")
 def prepare(request: Request, refresh: bool = False) -> dict[str, Any]:
   """Tailored PDFs for every queued internship; reuses this profile's earlier PDFs unless refresh=true."""

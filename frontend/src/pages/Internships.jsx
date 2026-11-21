@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import AgentSteps from "../components/AgentSteps";
 import { getJson } from "../components/api";
 import "./internships.css";
 
@@ -10,21 +11,6 @@ const AGENT_STEPS = [
 ];
 const SWIPE_PX = 120; // drag past this to commit
 const EXIT_MS = 220; // matches .in-card.leaving transition
-
-function AgentProgress() {
-  const [step, setStep] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setStep((s) => Math.min(s + 1, AGENT_STEPS.length - 1)), 3000);
-    return () => clearInterval(t);
-  }, []);
-  return (
-    <ol className="in-agents" aria-live="polite">
-      {AGENT_STEPS.map((text, i) => (
-        <li key={text} className={i < step ? "done" : i === step ? "active" : ""}>{text}</li>
-      ))}
-    </ol>
-  );
-}
 
 export default function Internships() {
   const [deck, setDeck] = useState(null); // null = loading
@@ -106,7 +92,7 @@ export default function Internships() {
       <p>Swipe right (or press →) to save to your queue, left (←) to skip.</p>
 
       {error && <p className="in-error" role="alert">Couldn't load internships: {error}</p>}
-      {!error && deck === null && <AgentProgress />}
+      {!error && deck === null && <AgentSteps steps={AGENT_STEPS} />}
       {deck && !job && (
         <div className="in-empty">
           <p>{deck.length ? "That's every match for now." : "No new internships to review right now."}</p>

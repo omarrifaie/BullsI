@@ -36,6 +36,16 @@ def test_queue_lists_apply_url_and_documents(client: TestClient) -> None:
   assert pt["status"] == "not_prepared" and pt["resume_url"] is None and pt["warnings"] == []
 
 
+def test_delete_queue_removes_only_that_job(client: TestClient) -> None:
+  _post_profile(client)
+  first, second = [j["id"] for j in client.get("/jobs?mode=internship").json()[:2]]
+  client.post(f"/queue/{first}")
+  client.post(f"/queue/{second}")
+  assert client.delete(f"/queue/{first}").json() == {"status": "removed", "job_id": first}
+  assert [q["job_id"] for q in client.get("/queue").json()] == [second]
+  assert client.delete(f"/queue/{first}").status_code == 200  # already gone: still fine
+
+
 def test_queue_fixes_legacy_absolute_urls(client: TestClient) -> None:
   profile: dict[str, Any] = _post_profile(client)
   job_id: str = client.get("/jobs?mode=internship").json()[0]["id"]

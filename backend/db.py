@@ -88,6 +88,11 @@ def add_to_queue(profile_id: Optional[int], job_id: str) -> None:
     conn.execute("INSERT OR IGNORE INTO queue (profile_id, job_id) VALUES (?, ?)", (profile_id, job_id))
 
 
+def remove_from_queue(profile_id: Optional[int], job_id: str) -> None:
+  with _db() as conn:
+    conn.execute("DELETE FROM queue WHERE profile_id IS ? AND job_id = ?", (profile_id, job_id))
+
+
 def get_queue(profile_id: Optional[int]) -> list[str]:
   with _db() as conn:
     rows: list[sqlite3.Row] = conn.execute(

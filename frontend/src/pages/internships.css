@@ -11,14 +11,6 @@
 }
 .page .in-counter { color: var(--bp-green); }
 
-.in-agents { list-style: none; padding: 0; margin: 24px 0; display: grid; gap: 10px; min-height: 320px; }
-.in-agents li { color: var(--bp-muted); padding-left: 32px; position: relative; }
-.in-agents li::before { content: "○"; position: absolute; left: 4px; }
-.in-agents li.active { color: var(--bp-ink); font-weight: 700; }
-.in-agents li.active::before { content: "◐"; color: var(--bp-green); animation: in-spin 1s linear infinite; display: inline-block; }
-.in-agents li.done::before { content: "✓"; color: var(--bp-green); }
-@keyframes in-spin { to { transform: rotate(360deg); } }
-
 .in-count { margin: 8px 0; }
 .in-stage { position: relative; min-height: 340px; max-width: 560px; }
 .in-card {

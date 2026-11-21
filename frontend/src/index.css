@@ -63,3 +63,12 @@ body {
 .page a { color: var(--bp-green); }
 .status { color: var(--bp-muted); }
 .status-bad { color: var(--bp-bad); font-weight: 600; }
+
+/* components/AgentSteps: progress list for slow agent calls (Internships, Queue). */
+.agent-steps { list-style: none; padding: 0; margin: 24px 0; display: grid; gap: 10px; }
+.agent-steps li { color: var(--bp-muted); padding-left: 32px; position: relative; }
+.agent-steps li::before { content: "○"; position: absolute; left: 4px; }
+.agent-steps li.active { color: var(--bp-ink); font-weight: 700; }
+.agent-steps li.active::before { content: "◐"; color: var(--bp-green); animation: agent-spin 1s linear infinite; }
+.agent-steps li.done::before { content: "✓"; color: var(--bp-green); }
+@keyframes agent-spin { to { transform: rotate(360deg); } }
