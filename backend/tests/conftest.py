@@ -9,8 +9,13 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from dotenv import load_dotenv  # noqa: E402
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")  # for TECTONIC_PATH; Gemini is always mocked in tests
+
 from agents import matcher, scout  # noqa: E402
 from agents import profile as profile_agent  # noqa: E402
+from agents import tailor as tailor_agent  # noqa: E402
 from fake_data import FAKE_PROFILE  # noqa: E402
 
 NOW: int = 1795300000  # 2026-11-22
@@ -51,15 +56,35 @@ def fake_extracted() -> profile_agent.ExtractedProfile:
   )
 
 
+def fake_tailor_output() -> tailor_agent.TailorOutput:
+  return tailor_agent.TailorOutput(
+    bullets=[{"id": "exp1_b2", "text": "Wrote a Python script that auto-tags tickets, cutting triage time by 30%"},
+             {"id": "proj1_b1", "text": "Built a live campus shuttle map used by 300+ students"}],
+    featured_skills=["Python", "SQL", "Kubernetes"],
+    cover_letter_paragraphs=["I am applying for this role & excited.", "At USF IT I cut triage time by 30%.",
+                             "I would bring Python and SQL skills. Thank you."],
+  )
+
+
+def _stub_build(_profile: dict[str, Any], _job: dict[str, Any], _out: Any, out_dir: Path) -> tuple[Path, Path]:
+  out_dir.mkdir(parents=True, exist_ok=True)
+  for name in ("resume.pdf", "cover_letter.pdf"):
+    (out_dir / name).write_bytes(b"%PDF-1.4\n%stub\n")
+  return out_dir / "resume.pdf", out_dir / "cover_letter.pdf"
+
+
 @pytest.fixture()
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
   """App with a temp DB, no network (Scout falls back to a temp cache), and Gemini mocked out."""
   monkeypatch.setenv("BULLPEN_DB", str(tmp_path / "test.db"))
   monkeypatch.setattr(profile_agent, "extract", lambda *_args: fake_extracted())
   monkeypatch.setattr(matcher, "write_reasons", lambda *_args: {})
+  monkeypatch.setattr(tailor_agent, "ask_gemini", lambda *_args: fake_tailor_output())
+  monkeypatch.setattr(tailor_agent, "build_documents", _stub_build)
   cache: Path = tmp_path / "listings_cache.json"
   cache.write_text(json.dumps(RAW_LISTINGS), encoding="utf-8")
   monkeypatch.setattr(scout, "LISTINGS_CACHE", cache)
+  monkeypatch.setattr(scout, "LISTINGS_SEED", tmp_path / "listings_seed.json")
   monkeypatch.setattr(scout, "PART_TIME_FILE", tmp_path / "part_time_jobs.json")
 
   def offline(*_args: Any, **_kwargs: Any) -> None:

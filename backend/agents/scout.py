@@ -2,6 +2,7 @@
 import json
 import logging
 import re
+import time
 from pathlib import Path
 from typing import Any, Optional
 
@@ -11,7 +12,9 @@ logger: logging.Logger = logging.getLogger("bullpen.scout")
 
 DATA_DIR: Path = Path(__file__).resolve().parent.parent / "data"
 LISTINGS_URL: str = "https://raw.githubusercontent.com/SimplifyJobs/Summer2027-Internships/dev/.github/scripts/listings.json"
-LISTINGS_CACHE: Path = DATA_DIR / "listings_cache.json"
+LISTINGS_CACHE: Path = DATA_DIR / "listings_cache.json"  # runtime, gitignored
+LISTINGS_SEED: Path = DATA_DIR / "listings_seed.json"  # committed snapshot, last resort
+CACHE_MAX_AGE_S: int = 3600
 PART_TIME_FILE: Path = DATA_DIR / "part_time_jobs.json"
 
 # Live data uses "Software" and "AI/ML/Data"; the longer names match a handful of older rows.
@@ -83,22 +86,26 @@ def normalize(x: dict[str, Any]) -> dict[str, Any]:
 
 
 def fetch_internships() -> list[dict[str, Any]]:
-  """Download listings; on any network/parse failure fall back to the local cache."""
+  """Cache if under 1 hour old, else download; on failure fall back to cache, then the committed seed."""
+  if LISTINGS_CACHE.exists() and time.time() - LISTINGS_CACHE.stat().st_mtime < CACHE_MAX_AGE_S:
+    return [normalize(x) for x in cached_listings()]
   try:
     res: httpx.Response = httpx.get(LISTINGS_URL, timeout=30, follow_redirects=True)
     res.raise_for_status()
     selected: list[dict[str, Any]] = select_listings(res.json())
     LISTINGS_CACHE.write_text(json.dumps(selected), encoding="utf-8")
   except (httpx.HTTPError, ValueError) as exc:
-    logger.warning("Simplify download failed (%s); using %s", type(exc).__name__, LISTINGS_CACHE.name)
+    logger.warning("Simplify download failed (%s); using local copy", type(exc).__name__)
     selected = cached_listings()
   return [normalize(x) for x in selected]
 
 
 def cached_listings() -> list[dict[str, Any]]:
-  if not LISTINGS_CACHE.exists():
-    return []
-  return select_listings(json.loads(LISTINGS_CACHE.read_text(encoding="utf-8")))
+  """Runtime cache if present, else the committed seed."""
+  for path in (LISTINGS_CACHE, LISTINGS_SEED):
+    if path.exists():
+      return select_listings(json.loads(path.read_text(encoding="utf-8")))
+  return []
 
 
 PLACEHOLDER_PART_TIME: list[dict[str, Any]] = [

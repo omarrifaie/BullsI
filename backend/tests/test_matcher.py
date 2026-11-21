@@ -1,8 +1,13 @@
 """M3: Scout selection, Matcher gates, score bounds, reasons."""
 import copy
 import itertools
+import json
+import os
+import time
+from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 
 from agents import matcher, scout
@@ -130,6 +135,58 @@ def test_scout_filters_and_keeps_local_listings() -> None:
   assert "dddddddd-0000-0000-0000-000000000004" not in ids  # Hardware category dropped
   assert "eeeeeeee-0000-0000-0000-000000000005" not in ids  # inactive dropped
   assert sum(1 for x in selected if x["locations"] == ["Austin, TX"]) == 98  # newest 100 = 2 fixture rows + 98 Austin
+
+
+@pytest.fixture()
+def listing_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+  """Temp cache/seed paths and a counting fake for httpx.get (fails unless `online` is set)."""
+  state: dict[str, Any] = {"calls": 0, "online": False, "cache": tmp_path / "cache.json", "seed": tmp_path / "seed.json"}
+  monkeypatch.setattr(scout, "LISTINGS_CACHE", state["cache"])
+  monkeypatch.setattr(scout, "LISTINGS_SEED", state["seed"])
+
+  class FakeResponse:
+    def raise_for_status(self) -> None:
+      pass
+
+    def json(self) -> list[dict[str, Any]]:
+      return [RAW_LISTINGS[1]]
+
+  def fake_get(*_args: Any, **_kwargs: Any) -> FakeResponse:
+    state["calls"] += 1
+    if not state["online"]:
+      raise httpx.ConnectError("offline")
+    return FakeResponse()
+  monkeypatch.setattr(scout.httpx, "get", fake_get)
+  return state
+
+
+def _write_rows(path: Path, rows: list[dict[str, Any]], age_s: float = 0) -> None:
+  path.write_text(json.dumps(rows), encoding="utf-8")
+  stamp: float = time.time() - age_s
+  os.utime(path, (stamp, stamp))
+
+
+def test_fresh_cache_skips_download(listing_files: dict[str, Any]) -> None:
+  _write_rows(listing_files["cache"], [RAW_LISTINGS[0]], age_s=600)
+  listing_files["online"] = True
+  assert [j["id"] for j in scout.fetch_internships()] == ["job_aaaaaaaa"]
+  assert listing_files["calls"] == 0
+
+
+def test_stale_cache_downloads_and_refreshes(listing_files: dict[str, Any]) -> None:
+  _write_rows(listing_files["cache"], [RAW_LISTINGS[0]], age_s=7200)
+  listing_files["online"] = True
+  assert [j["id"] for j in scout.fetch_internships()] == ["job_bbbbbbbb"]
+  assert listing_files["calls"] == 1
+  assert json.loads(listing_files["cache"].read_text())[0]["id"] == RAW_LISTINGS[1]["id"]
+
+
+def test_offline_falls_back_to_cache_then_seed(listing_files: dict[str, Any]) -> None:
+  _write_rows(listing_files["seed"], [RAW_LISTINGS[2]])
+  assert [j["id"] for j in scout.fetch_internships()] == ["job_cccccccc"]  # no cache -> seed
+  _write_rows(listing_files["cache"], [RAW_LISTINGS[0]], age_s=7200)
+  assert [j["id"] for j in scout.fetch_internships()] == ["job_aaaaaaaa"]  # stale cache beats seed
+  assert listing_files["calls"] == 2
 
 
 def test_normalized_job_matches_contract() -> None:

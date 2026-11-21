@@ -1,5 +1,6 @@
-"""BullPen backend. Real: /profile, /jobs, /auto ranking. Still fake: /prepare PDFs (M4). Teammate routes are stubs."""
+"""BullPen backend. Real: /profile, /jobs, /prepare, /auto. Teammate-owned routes are stubs."""
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, AsyncIterator, Literal, Optional
@@ -17,7 +18,9 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 import db  # noqa: E402
 from agents import matcher, scout  # noqa: E402
 from agents import profile as profile_agent  # noqa: E402
-from fake_data import FAKE_COMMUTE, FAKE_PARTTIME, write_placeholder_pdf  # noqa: E402
+from agents import tailor as tailor_agent  # noqa: E402
+from fake_data import FAKE_COMMUTE, FAKE_PARTTIME  # noqa: E402
+from latex.render import LatexError  # noqa: E402
 from models import Job  # noqa: E402
 
 logger: logging.Logger = logging.getLogger("bullpen")
@@ -69,25 +72,33 @@ def _current_profile_id() -> Optional[int]:
   return profile["id"] if profile else None
 
 
+def _prepare_one(request: Request, profile: dict[str, Any], job: dict[str, Any]) -> dict[str, Any]:
+  doc: dict[str, Any] = {"job_id": job["id"], "status": "error", "resume_url": None, "cover_letter_url": None, "error": None}
+  try:
+    tailor_agent.run(profile, job, GENERATED_DIR / job["id"])
+  except (tailor_agent.TailorValidationError, LatexError) as exc:
+    doc["error"] = str(exc)
+    return doc
+  except Exception as exc:
+    logger.exception("Tailor failed for %s", job["id"])
+    doc["error"] = f"Tailor agent failed: {type(exc).__name__}"
+    return doc
+  doc["status"] = "ready"
+  doc["resume_url"] = str(request.url_for("generated", path=f"{job['id']}/resume.pdf"))
+  doc["cover_letter_url"] = str(request.url_for("generated", path=f"{job['id']}/cover_letter.pdf"))
+  return doc
+
+
 def _prepare(request: Request, job_ids: list[str]) -> list[dict[str, Any]]:
-  """M1 stub: writes placeholder PDFs for queued internships."""
-  profile_id: Optional[int] = _current_profile_id()
-  docs: list[dict[str, Any]] = []
-  for job_id in job_ids:
-    job: Optional[dict[str, Any]] = scout.find_job(job_id)
-    if job is None or job["mode"] != "internship":
-      continue
-    write_placeholder_pdf(GENERATED_DIR / job_id / "resume.pdf", f"Resume for {job['title']} at {job['company']}")
-    write_placeholder_pdf(GENERATED_DIR / job_id / "cover_letter.pdf", f"Cover letter for {job['company']}")
-    doc: dict[str, Any] = {
-      "job_id": job_id,
-      "status": "ready",
-      "resume_url": str(request.url_for("generated", path=f"{job_id}/resume.pdf")),
-      "cover_letter_url": str(request.url_for("generated", path=f"{job_id}/cover_letter.pdf")),
-      "error": None,
-    }
-    db.save_document(profile_id, doc)
-    docs.append(doc)
+  """Tailor + compile resume and cover letter for each queued internship. One failure never sinks the batch."""
+  profile: dict[str, Any] = _require_profile()
+  jobs: list[dict[str, Any]] = [
+    j for j in (scout.find_job(i) for i in job_ids) if j is not None and j["mode"] == "internship"
+  ]
+  with ThreadPoolExecutor(max_workers=4) as pool:  # each job writes only its own generated/<job_id>/ folder
+    docs: list[dict[str, Any]] = list(pool.map(lambda job: _prepare_one(request, profile, job), jobs))
+  for doc in docs:
+    db.save_document(profile["id"], doc)
   return docs
 
 

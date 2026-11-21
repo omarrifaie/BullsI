@@ -15,6 +15,7 @@ dist/
 backend/generated/*
 !backend/generated/.gitkeep
 *.db
+backend/data/listings_cache.json
 
 # playwright login sessions (never commit these)
 apply_worker/browser_profile/

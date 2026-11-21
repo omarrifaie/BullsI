@@ -1,5 +1,4 @@
-"""Stub data for teammate-owned routes, the test profile, and placeholder PDFs until M4."""
-from pathlib import Path
+"""Stub data for teammate-owned routes and the test profile."""
 from typing import Any
 
 FAKE_PROFILE: dict[str, Any] = {
@@ -99,28 +98,3 @@ FAKE_PARTTIME: list[dict[str, Any]] = [
             20.0, ["tutoring", "math", "communication"], 81, "Top pay and Sunday hours never clash"),
 ]
 
-
-def write_placeholder_pdf(path: Path, text: str) -> None:
-  """Write a tiny valid one-page PDF so the frontend can preview something before M4."""
-  safe: str = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-  stream: bytes = f"BT /F1 18 Tf 72 720 Td ({safe}) Tj ET".encode("latin-1", "replace")
-  objects: list[bytes] = [
-    b"<< /Type /Catalog /Pages 2 0 R >>",
-    b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R"
-    b" /Resources << /Font << /F1 5 0 R >> >> >>",
-    b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
-    b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-  ]
-  out: bytearray = bytearray(b"%PDF-1.4\n")
-  offsets: list[int] = []
-  for i, body in enumerate(objects, start=1):
-    offsets.append(len(out))
-    out += f"{i} 0 obj\n".encode() + body + b"\nendobj\n"
-  xref_at: int = len(out)
-  out += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode()
-  for off in offsets:
-    out += f"{off:010d} 00000 n \n".encode()
-  out += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_at}\n%%EOF\n".encode()
-  path.parent.mkdir(parents=True, exist_ok=True)
-  path.write_bytes(bytes(out))
