@@ -21,3 +21,4 @@ backend/data/listings_cache.json
 apply_worker/browser_profile/
 apply_worker/status.json
 apply_worker/tmp/
+.claude/settings.local.json
