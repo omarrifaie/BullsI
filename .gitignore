@@ -1,0 +1,20 @@
+# secrets
+.env
+
+# python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# node
+node_modules/
+dist/
+
+# app output
+backend/generated/*
+!backend/generated/.gitkeep
+*.db
+
+# playwright login sessions (never commit these)
+apply_worker/browser_profile/
