@@ -254,6 +254,10 @@
     }
   });
 
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") document.querySelectorAll("ul[role=listbox].open").forEach(ul => ul.classList.remove("open"));
+  });
+
   document.querySelector('[data-automation-id="adventureButton"]').addEventListener("click", () => {
     document.getElementById("apply-modal").classList.add("open");
   });

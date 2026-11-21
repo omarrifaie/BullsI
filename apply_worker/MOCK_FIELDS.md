@@ -9,6 +9,9 @@ behavior as `apply_worker/mock/workday_mock.html`:
 - **text / textarea**: a plain `<input type=text>` / `<textarea>` with the id on the input.
 - **dropdown**: a `<button>` with the id that shows `Select One`. Clicking it opens the next sibling
   `<ul role=listbox>` with `<li role=option>` items. Picking one sets the button text to the option text.
+  Escape closes an open listbox.
+- **Button texts must match exactly** (the worker only clicks allowlisted texts): `Apply`, `Apply Manually`,
+  `Save and Continue`, `Add`. The Review page's button must say `Submit` (the worker refuses it).
 - **checkbox**: an `<input type=checkbox>` with the id.
 - **date**: a wrapper with the id containing two inputs: `dateSectionMonth-input` (MM) and
   `dateSectionYear-input` (YYYY).
