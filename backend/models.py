@@ -31,6 +31,7 @@ class Commute(BaseModel):
   transfers: int
   co2_saved_kg_week: float
   steps: list[CommuteStep]
+  origin_label: str = ""  # "USF campus" or "Your address" (teammate B's commute agent)
 
 
 class Job(BaseModel):

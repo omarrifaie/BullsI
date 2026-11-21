@@ -42,18 +42,65 @@ def test_commute_for_job(fixed_clock: None, fake_routes: list[dict[str, Any]]) -
   assert out["steps"][1]["depart"] == "14:22" and out["leave_by"] == "14:18"  # 14:22 minus the 4 min walk
   for key in ("mode", "line", "from_stop", "to_stop", "depart", "arrive", "polyline"):
     assert all(key in s for s in out["steps"]), key
-  arrival: str = next(b["arrivalTime"] for b in fake_routes if b["travelMode"] == "TRANSIT")
-  assert arrival == "2026-11-24T19:50:00Z"  # next Tuesday from the fixed clock
+  transit_request: dict[str, Any] = next(b for b in fake_routes if b["travelMode"] == "TRANSIT")
+  assert transit_request["arrivalTime"] == "2026-11-24T19:50:00Z"  # next Tuesday from the fixed clock
+  assert transit_request["computeAlternativeRoutes"] is True
+  assert out["origin_label"] == "USF campus"  # no origin given
 
 
 def test_second_call_is_served_from_cache(fixed_clock: None, fake_routes: list[dict[str, Any]],
                                           monkeypatch: pytest.MonkeyPatch) -> None:
-  cm.commute_for_job(JOB)
 
   def cache_miss(*_args: Any) -> None:
     raise AssertionError("cache miss: called the Routes API")
+  first: dict[str, Any] = cm.commute_for_job(JOB)
   monkeypatch.setattr(cm, "_call", cache_miss)
-  assert cm.commute_for_job(JOB)["minutes"] == 25
+  second: dict[str, Any] = cm.commute_for_job(JOB)  # transit route AND driving distance come from the cache
+  assert second["minutes"] == 25 and second["co2_saved_kg_week"] == first["co2_saved_kg_week"] == 11.9
+
+
+def _transit_route(minutes: int, line: str, agency: str) -> dict[str, Any]:
+  return {"duration": f"{minutes * 60}s", "legs": [{"steps": [{"travelMode": "TRANSIT", "staticDuration": f"{minutes * 60}s",
+          "transitDetails": {"transitLine": {"name": line, "nameShort": line, "agencies": [{"name": agency}]},
+                             "stopDetails": {}}}]}]}
+
+
+FLIXBUS: dict[str, Any] = _transit_route(30, "FlixBus", "FlixBus")
+HART_5: dict[str, Any] = _transit_route(40, "5", "Hillsborough Area Regional Transit")
+
+
+def test_picks_first_local_alternative(fixed_clock: None, monkeypatch: pytest.MonkeyPatch) -> None:
+  """Google ranks an intercity FlixBus first; the agent skips it for the first HART-only route."""
+  monkeypatch.setattr(cm, "_call", lambda body, _mask: (
+    {"routes": [{"distanceMeters": 12000}]} if body["travelMode"] == "DRIVE" else {"routes": [FLIXBUS, HART_5]}))
+  out: dict[str, Any] = cm.commute_for_job(JOB)
+  assert out["minutes"] == 40 and out["car_free"] and out["steps"][0]["line"] == "5"
+
+
+def test_no_local_alternative_keeps_best_but_not_car_free(fixed_clock: None, monkeypatch: pytest.MonkeyPatch) -> None:
+  monkeypatch.setattr(cm, "_call", lambda body, _mask: {"routes": [FLIXBUS]})
+  out: dict[str, Any] = cm.commute_for_job(JOB)
+  assert out["minutes"] == 30 and not out["car_free"] and out["co2_saved_kg_week"] == 0.0
+
+
+def test_no_route_is_cached(fixed_clock: None, monkeypatch: pytest.MonkeyPatch) -> None:
+  calls: list[str] = []
+
+  def no_routes(body: dict[str, Any], _mask: str) -> dict[str, Any]:
+    calls.append(body["travelMode"])
+    return {}
+  monkeypatch.setattr(cm, "_call", no_routes)
+  assert cm.commute_for_job(JOB)["minutes"] is None
+  assert cm.commute_for_job(JOB)["minutes"] is None
+  assert calls == ["TRANSIT"]
+
+
+def test_home_origin_needs_a_street_address() -> None:
+  assert cm.home_origin({"address": "Tampa, FL"}) == cm.CAMPUS  # city only would geocode downtown
+  assert cm.home_origin({"address": ""}) == cm.CAMPUS and cm.home_origin(None) == cm.CAMPUS
+  assert cm.home_origin({"address": "4202 E Fowler Ave, Tampa, FL 33620"}) == "4202 E Fowler Ave, Tampa, FL 33620"
+  assert cm.home_origin({"address": "Tampa, FL"}, {"home_address": "12 Elm St, Tampa"}) == "12 Elm St, Tampa"
+  assert cm.origin_label(cm.CAMPUS) == "USF campus" and cm.origin_label("12 Elm St, Tampa") == "Your address"
 
 
 def test_next_shift_start(fixed_clock: None) -> None:
@@ -101,6 +148,7 @@ def test_parttime_jobs_carry_commutes(client: TestClient, fake_routes: list[dict
   profile: dict[str, Any] = _post_profile(client)
   jobs: list[dict[str, Any]] = client.get("/jobs?mode=parttime").json()
   assert jobs and all(j["commute"]["minutes"] == 25 and j["commute"]["car_free"] for j in jobs)
+  assert all(j["commute"]["origin_label"] == "Your address" for j in jobs)
   assert all(j["match"]["reason"].endswith("25 min") for j in jobs)  # the Matcher scored real minutes
   assert all(b["origin"] == {"address": profile["address"]} for b in fake_routes)
 

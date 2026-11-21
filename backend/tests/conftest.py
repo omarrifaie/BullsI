@@ -105,7 +105,8 @@ FAKE_ROUTE: dict[str, Any] = {"routes": [{"duration": "1500s", "distanceMeters":
    "polyline": {"encodedPolyline": "_p~iF~ps|U_ulLnnqC"}},
   {"travelMode": "TRANSIT", "staticDuration": "900s", "polyline": {"encodedPolyline": "_p~iF~ps|U_ulLnnqC"},
    "transitDetails": {
-    "headsign": "UATC", "stopCount": 4, "transitLine": {"name": "Bull Runner", "nameShort": "BR", "color": "#006747"},
+    "headsign": "UATC", "stopCount": 4, "transitLine": {"name": "Bull Runner", "nameShort": "BR", "color": "#006747",
+                                                  "agencies": [{"name": "University of South Florida"}]},
     "stopDetails": {"departureStop": {"name": "Marshall Student Center"}, "arrivalStop": {"name": "UATC"},
                     "departureTime": "2026-11-24T19:22:00Z", "arrivalTime": "2026-11-24T19:37:00Z"}}},
 ]}]}]}

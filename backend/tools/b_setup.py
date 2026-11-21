@@ -54,7 +54,7 @@ def geocode():
 def warm():
     jobs = json.loads(JOBS.read_text())
     origin = cm.home_origin(db.latest_profile())  # same origin /jobs uses, so these become cache hits
-    print("Origin:", "profile address" if isinstance(origin, str) else "USF campus")
+    print("Origin:", cm.origin_label(origin))
     for j in jobs:
         c = cm.commute_for_job(j, origin)
         print(j["id"], c.get("minutes"), "min", "car-free" if c.get("car_free") else "", c.get("error", ""))
