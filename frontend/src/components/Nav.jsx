@@ -3,9 +3,9 @@ import { NavLink } from "react-router-dom";
 const LINKS = [
   ["/profile", "Profile"],
   ["/internships", "Internships"],
+  ["/queue", "Queue"],
   ["/parttime", "Part-time"],
   ["/myjob", "My Job"],
-  ["/queue", "Queue"],
 ];
 
 export default function Nav() {
