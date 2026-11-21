@@ -124,6 +124,12 @@
   overflow: hidden;
   flex-shrink: 0;
 }
+.in-commute { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0 0; font-size: 0.95rem; font-weight: 700; line-height: 1.35; color: var(--bp-green); flex-shrink: 0; }
+.in-commute svg { flex: none; width: 20px; height: 20px; margin-top: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.in-commute small { display: block; font-size: 0.85rem; font-weight: 400; color: var(--bp-muted); }
+.in-commute.is-no_route, .in-commute.is-pending { color: var(--bp-muted); font-weight: 600; }
+.in-commute.is-pending span { animation: in-pulse 1.4s ease-in-out infinite; }
+@keyframes in-pulse { 50% { opacity: 0.45; } }
 .page .in-link { margin-top: auto; padding-top: 12px; align-self: flex-start; font-size: 0.95rem; color: var(--bp-muted); }
 .page .in-link:hover { color: var(--bp-green); }
 

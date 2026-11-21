@@ -77,7 +77,7 @@ def build_ics(events: list[dict]) -> str:
     """Tiny RFC 5545 writer (no dependency). events: name, begin, end (aware datetimes), location, description."""
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     fmt = lambda d: d.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    out = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//BullPen//Leave-by//EN", "CALSCALE:GREGORIAN"]
+    out = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//BullsI//Leave-by//EN", "CALSCALE:GREGORIAN"]
     for i, e in enumerate(events):
         out += [
             "BEGIN:VEVENT",

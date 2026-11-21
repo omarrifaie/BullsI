@@ -35,6 +35,15 @@ class Commute(BaseModel):
   co2_source: Optional[dict[str, str]] = None  # {"label", "url"}: where co2_saved_kg_week's per-mile figure comes from
 
 
+class CommuteHint(BaseModel):
+  """One-line bus estimate on Tampa Bay internship cards (agents/office_commute.py). Not used for scoring."""
+  kind: Literal["bus", "walk", "no_route", "remote", "pending"]
+  text: str  # "Bus 5 · 34 min · Free with Flamingo Card"; empty while pending
+  minutes: Optional[int] = None
+  approx: bool  # True when the office location was estimated from "<company>, <city>"
+  origin_label: str = ""  # "USF campus" or "Your address"
+
+
 class Job(BaseModel):
   id: str
   mode: Literal["internship", "parttime"]
@@ -49,6 +58,7 @@ class Job(BaseModel):
   skills: list[str]
   match: Optional[Match]
   commute: Optional[Commute]
+  commute_hint: Optional[CommuteHint] = None  # optional addition: internships only, see CommuteHint
 
 
 class Bullet(BaseModel):

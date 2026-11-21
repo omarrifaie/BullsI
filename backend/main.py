@@ -20,7 +20,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 import db  # noqa: E402
 import graph  # noqa: E402
 import routes_b  # noqa: E402
-from agents import jobdesc, scout  # noqa: E402
+from agents import jobdesc, office_commute, scout  # noqa: E402
 from latex.render import tectonic_path  # noqa: E402
 from models import Job  # noqa: E402
 
@@ -39,7 +39,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
   yield
 
 
-app: FastAPI = FastAPI(title="BullPen", lifespan=lifespan)
+app: FastAPI = FastAPI(title="BullsI", lifespan=lifespan)
 app.add_middleware(
   CORSMiddleware,
   allow_origins=["http://localhost:5173"],
@@ -145,10 +145,13 @@ async def create_profile(
 
 @app.get("/jobs")
 def get_jobs(mode: Literal["internship", "parttime"] = Query(...), refresh: bool = False) -> list[dict[str, Any]]:
-  """Ranked jobs, cached per profile; refresh=true re-runs Scout + Matcher."""
-  state: graph.BullPenState = graph.run(
-    {"action": "jobs", "profile": _require_profile(), "mode": mode, "refresh": refresh})
-  return [Job.model_validate(j).model_dump() for j in state["jobs"]]
+  """Ranked jobs, cached per profile; refresh=true re-runs Scout + Matcher. Internships get a bus-line hint."""
+  profile: dict[str, Any] = _require_profile()
+  state: graph.BullPenState = graph.run({"action": "jobs", "profile": profile, "mode": mode, "refresh": refresh})
+  jobs: list[dict[str, Any]] = [dict(j) for j in state["jobs"]]
+  if mode == "internship":
+    office_commute.attach_hints(jobs, profile)  # cache reads only; never waits on Google
+  return [Job.model_validate(j).model_dump() for j in jobs]
 
 
 # Owned by teammate C. Stub.
