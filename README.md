@@ -124,8 +124,8 @@ Scoring, schedule conflicts and CO2 math are plain Python, not model output, so 
 You'll need Python 3.11+, Node 18+, [Tectonic](https://tectonic-typesetting.github.io/), a [Gemini API key](https://aistudio.google.com/), and a Google Cloud key with the Routes API and Maps JavaScript API enabled.
 
 ```bash
-git clone https://github.com/omarrifaie/Hackjam.git
-cd Hackjam
+git clone https://github.com/omarrifaie/BullsI.git
+cd BullsI
 ```
 
 Create `.env` in the repo root and `frontend/.env`:
