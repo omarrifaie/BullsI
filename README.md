@@ -1,13 +1,12 @@
 <p align="center">
-  <img src="frontend/src/assets/bullsi-logo.png" alt="BullsI" width="150">
+  <img src="frontend/src/assets/bullsi-logo.png" alt="BullsI" width="420">
 </p>
 
-<h1 align="center">BullsI</h1>
-
-<p align="center"><b>Land the job. Leave the car.</b></p>
+<h3 align="center">Aim. Swipe. Hired.</h3>
 
 <p align="center">
-  Built at HackJam 2026, University of South Florida
+  Built at HackJam 2026, University of South Florida<br>
+  <a href="https://www.mlh.com/events/hackjam-26/submissions/01a20051-2349-59b3-2d7b-1e63410c8229">View our MLH submission</a>
 </p>
 
 ---
